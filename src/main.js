@@ -4,7 +4,7 @@
 /* ════════════════════════════════════════════════════════════
    AUTH — SYSTÈME CORPO TELOS
 ════════════════════════════════════════════════════════════ */
-var ADMIN_ID = 'p_admin'; // DarkKaeloo admin
+// ADMIN_ID défini dans config/config.js
 var SESSION = null; // { pid, name, isAdmin }
 
 // ══ DISPATCHER GLOBAL — évite les problèmes de quotes dans les onclick ══════
@@ -341,7 +341,8 @@ async function doLogin() {
 /* ── Auto-sauvegarde toutes les 5 minutes ── */
 var _autoSaveTimer = null;
 /* ════ DATABASE — Supabase ════ */
-var SUPABASE_URL='https://ykdamleudeatahrxicgk.supabase.co';const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlrZGFtbGV1ZGVhdGFocnhpY2drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNDA4OTAsImV4cCI6MjA5NTgxNjg5MH0.G4XABQpw95k9AsZoW7eQVrQcAuLDfeK8nUGaWN8dEc8';let _sb=null;
+// SUPABASE_URL et SUPABASE_KEY définis dans config/config.js
+let _sb=null;
 
 // ── Supprime le faux warning DataCloneError généré par Supabase JS (postMessage + Headers) ──
 (function() {
@@ -4290,7 +4291,8 @@ ${resumé}`,
 }
 
 // ── Discord Webhook — Notifications Commandes ────────────
-const DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1512816823270117546/c0f2J3-g3u-sbT2KKD3hrGcgBefHG3VFXgeVK-aqcvPLjkWcdrTOJViQtqy2GaaGm0Yi';
+// DISCORD_WEBHOOK_URL défini dans config/config.js
+var DISCORD_WEBHOOK = DISCORD_WEBHOOK_URL;
 
 async function notifyDiscord(commande, event) {
   try {
@@ -7082,13 +7084,14 @@ function openSettings() {
 }
 
 function openSettingsTab(tab) {
-  ['general','roles'].forEach(t=>{
+  ['general','roles','backup'].forEach(t=>{
     const panel=document.getElementById('stab-panel-'+t);
     const btn=document.getElementById('stab-'+t);
     if(panel) panel.style.display = t===tab ? 'flex' : 'none';
     if(btn){ btn.style.color=t===tab?'var(--text-bright)':'var(--text-dim)'; btn.style.borderBottomColor=t===tab?'var(--orange)':'transparent'; }
   });
   if(tab==='roles') renderRolesDroitsPanel();
+  if(tab==='backup') refreshBackupList();
 }
 
 // ── Rendu du panneau Rôles & Droits ──

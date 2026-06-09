@@ -2,3 +2,6 @@ node_modules/
 dist/
 .env
 .env.local
+
+# Configuration sensible — ne pas committer sur GitHub
+config/config.js

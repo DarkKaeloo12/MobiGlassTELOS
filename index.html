@@ -1945,6 +1945,7 @@ function showLoginWall(){} // stub
   <div style="display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 18px;background:var(--bg2);">
     <button id="stab-general" onclick="openSettingsTab('general')" style="padding:10px 18px;border:none;border-bottom:2px solid var(--orange);background:transparent;color:var(--text-bright);font-family:var(--ui);font-size:12px;letter-spacing:1.5px;cursor:pointer;">⚙ GÉNÉRAL</button>
     <button id="stab-roles" onclick="openSettingsTab('roles')" style="padding:10px 18px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text-dim);font-family:var(--ui);font-size:12px;letter-spacing:1.5px;cursor:pointer;">⬡ RÔLES &amp; DROITS</button>
+    <button id="stab-backup" onclick="openSettingsTab('backup')" style="padding:10px 18px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text-dim);font-family:var(--ui);font-size:12px;letter-spacing:1.5px;cursor:pointer;">💾 SAUVEGARDES</button>
   </div>
 
   <!-- Onglet GÉNÉRAL -->
@@ -2032,8 +2033,35 @@ function showLoginWall(){} // stub
     </div>
   </div>
 
+  <!-- Onglet SAUVEGARDES -->
+  <div id="stab-panel-backup" class="modal-body" style="display:none;gap:14px;max-height:70vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:9px;letter-spacing:1.5px;color:var(--orange);text-transform:uppercase;">💾 Sauvegardes disponibles</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" onclick="refreshBackupList()" style="font-size:11px;">🔄 Actualiser</button>
+        <button class="btn primary" id="backup-trigger-btn" onclick="triggerBackup()" style="font-size:11px;">💾 Nouveau backup</button>
+      </div>
+    </div>
+    <div id="backup-stats" style="display:flex;gap:20px;padding:8px 12px;background:var(--bg3);border:1px solid var(--border);font-family:var(--ui);font-size:10px;color:var(--text-dim);"><span>Chargement...</span></div>
+    <div id="backup-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+    <div style="margin-top:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <div style="font-size:9px;letter-spacing:1.5px;color:var(--text-dim);text-transform:uppercase;">📋 Logs système</div>
+        <button class="btn" onclick="loadBackupLogs()" style="font-size:10px;">🔄 Charger</button>
+      </div>
+      <div id="backup-logs" style="background:var(--bg3);border:1px solid var(--border);padding:10px;font-family:var(--mono);font-size:10px;color:var(--text-dim);max-height:180px;overflow-y:auto;white-space:pre-wrap;">Cliquez sur Charger pour afficher les logs.</div>
+    </div>
+  </div>
+
   <div class="modal-foot">
+    <button class="btn" onclick="closeSettings()">Fermer</button>
+  </div>
+</div>
+</div>
 
   <!-- JS via Vite -->
+  <script src="./config/config.js"></script>
+  <script src="./src/backup-panel.js"></script>
   <script src="./src/main.js"></script>
+</body>
 </html>
