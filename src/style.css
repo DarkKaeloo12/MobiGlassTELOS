@@ -1410,7 +1410,6 @@ body::before {
 .bank-pg-btn.active { border-color:var(--orange);color:var(--orange); }
 .bank-pg-btn:hover { border-color:rgba(247,140,30,.5);color:var(--orange); }
 
-
 /* ══════════════════════════════════════════════════════
    BACKUP PANEL
 ══════════════════════════════════════════════════════ */
