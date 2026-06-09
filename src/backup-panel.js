@@ -9,6 +9,10 @@
 
 /* ── Ouvrir le panel backup ─────────────────────────────── */
 function openBackupPanel() {
+  if (!hasDroit('backup')) {
+    toast('Accès refusé', 'Vous n\'avez pas accès aux sauvegardes', 'error');
+    return;
+  }
   document.getElementById('backup-overlay').classList.add('open');
   loadBackupList();
 }
