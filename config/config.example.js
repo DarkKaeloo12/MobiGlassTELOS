@@ -4,8 +4,8 @@
 ════════════════════════════════════════════════════════════ */
 
 // ── SUPABASE ──────────────────────────────────────────────
-var SUPABASE_URL  = 'https://ykdamleudeatahrxicgk.supabase.co/rest/v1/';
-var SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlrZGFtbGV1ZGVhdGFocnhpY2drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNDA4OTAsImV4cCI6MjA5NTgxNjg5MH0.G4XABQpw95k9AsZoW7eQVrQcAuLDfeK8nUGaWN8dEc8';
+var SUPABASE_URL  = 'https://TON_PROJET.supabase.co';
+var SUPABASE_KEY  = 'TA_CLE_ANON_SUPABASE';
 
 // ── DISCORD ───────────────────────────────────────────────
 var DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/TON_WEBHOOK';
