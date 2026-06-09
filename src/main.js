@@ -4,7 +4,7 @@
 /* ════════════════════════════════════════════════════════════
    AUTH — SYSTÈME CORPO TELOS
 ════════════════════════════════════════════════════════════ */
-// ADMIN_ID défini dans config/config.js
+var ADMIN_ID = 'p_admin'; // DarkKaeloo admin
 var SESSION = null; // { pid, name, isAdmin }
 
 // ══ DISPATCHER GLOBAL — évite les problèmes de quotes dans les onclick ══════
@@ -341,8 +341,7 @@ async function doLogin() {
 /* ── Auto-sauvegarde toutes les 5 minutes ── */
 var _autoSaveTimer = null;
 /* ════ DATABASE — Supabase ════ */
-// SUPABASE_URL et SUPABASE_KEY définis dans config/config.js
-let _sb=null;
+var SUPABASE_URL='https://ykdamleudeatahrxicgk.supabase.co';const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlrZGFtbGV1ZGVhdGFocnhpY2drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNDA4OTAsImV4cCI6MjA5NTgxNjg5MH0.G4XABQpw95k9AsZoW7eQVrQcAuLDfeK8nUGaWN8dEc8';let _sb=null;
 
 // ── Supprime le faux warning DataCloneError généré par Supabase JS (postMessage + Headers) ──
 (function() {
@@ -3762,7 +3761,7 @@ function openAddCommande(editId) {
   set('cmd-dl',       c?.dl       ||'');
   set('cmd-notes',    c?.notes    ||'');
 
-  // Commande branchée
+  // Commande de Branche
   const branche = c?.branche || 0;
   const brInput = document.getElementById('cmd-branche');
   if (brInput) brInput.value = branche;
@@ -4291,8 +4290,7 @@ ${resumé}`,
 }
 
 // ── Discord Webhook — Notifications Commandes ────────────
-// DISCORD_WEBHOOK_URL défini dans config/config.js
-var DISCORD_WEBHOOK = DISCORD_WEBHOOK_URL;
+const DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1512816823270117546/c0f2J3-g3u-sbT2KKD3hrGcgBefHG3VFXgeVK-aqcvPLjkWcdrTOJViQtqy2GaaGm0Yi';
 
 async function notifyDiscord(commande, event) {
   try {
@@ -6130,13 +6128,14 @@ var DROITS_DEFS = [
   { id:'edit_stock',    label:'✏ Modifier stock',          desc:'Ajouter/modifier son propre stock' },
   { id:'add_commande',  label:'+ Créer commande',          desc:'Créer une commande' },
   { id:'use_priority',  label:'🔴 Priorité commande',      desc:'Choisir la priorité d\'une commande' },
-  { id:'use_branche',   label:'🔗 Commande branchée',      desc:'Marquer une commande comme branchée' },
+  { id:'use_branche',   label:'🔗 Commande de Branche',      desc:'Marquer une commande comme branchée' },
   { id:'add_objectif',  label:'+ Créer objectif',          desc:'Créer un objectif' },
   { id:'add_mission',   label:'+ Créer mission',           desc:'Créer une mission (Gest.)' },
   { id:'add_blueprint', label:'+ Ajouter blueprint',       desc:'Ajouter un blueprint' },
   { id:'add_transaction',label:'+ Créer transaction',      desc:'Ajouter une transaction banque' },
   { id:'delete_data',   label:'🗑 Supprimer données',      desc:'Supprimer commandes/objectifs/BP' },
   { id:'manage_roles',  label:'⬡ Gérer les rôles',        desc:'Attribuer les rôles aux joueurs' },
+  { id:'backup',        label:'💾 Sauvegardes',            desc:'Accès à la gestion des sauvegardes' },
 ];
 
 var DEFAULT_DROITS = {
@@ -7091,7 +7090,7 @@ function openSettingsTab(tab) {
     if(btn){ btn.style.color=t===tab?'var(--text-bright)':'var(--text-dim)'; btn.style.borderBottomColor=t===tab?'var(--orange)':'transparent'; }
   });
   if(tab==='roles') renderRolesDroitsPanel();
-  if(tab==='backup') refreshBackupList();
+  if(tab==='backup') { if(!hasDroit('backup') && !SESSION?.isAdmin) { openSettingsTab('general'); return; } refreshBackupList(); }
 }
 
 // ── Rendu du panneau Rôles & Droits ──
@@ -7107,6 +7106,7 @@ function _roleColorHex(r) {
   if (v.startsWith('var(')) return '#aaaaaa';
   return v;
 }
+
 
 function renderRolesNameList() {
   const el = document.getElementById('roles-name-list');
