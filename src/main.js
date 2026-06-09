@@ -340,8 +340,10 @@ async function doLogin() {
 /* ── Export HTML avec données intégrées ── */
 /* ── Auto-sauvegarde toutes les 5 minutes ── */
 var _autoSaveTimer = null;
+
 /* ════ DATABASE — Supabase ════ */
-var SUPABASE_URL='https://ykdamleudeatahrxicgk.supabase.co';const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlrZGFtbGV1ZGVhdGFocnhpY2drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNDA4OTAsImV4cCI6MjA5NTgxNjg5MH0.G4XABQpw95k9AsZoW7eQVrQcAuLDfeK8nUGaWN8dEc8';let _sb=null;
+// SUPABASE_URL et SUPABASE_KEY définis dans config/config.js
+let _sb=null;
 
 // ── Supprime le faux warning DataCloneError généré par Supabase JS (postMessage + Headers) ──
 (function() {
