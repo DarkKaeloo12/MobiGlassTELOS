@@ -4628,18 +4628,32 @@ async function syncFromUEX() {
       };
     });
 
-    // Ensuite : commodities_prices (sans filtre) = tous les terminaux, tous systèmes
+    // Ensuite : commodities_prices par batch de 10 terminaux
     try {
-      if (status) status.textContent = 'Chargement prix tous terminaux...';
-      const allPrices = await apiFetch('commodities_prices');
-      const pricesArr = Array.isArray(allPrices) ? allPrices : [];
-      if (pricesArr.length > 0) {
+      if (status) status.textContent = 'Chargement liste terminaux...';
+      const terminals = await apiFetch('terminals?id_star_system=68');
+      const termArr = Array.isArray(terminals) ? terminals : [];
+      const ids = termArr.map(t => t.id).filter(Boolean);
+      const batches = [];
+      for (var _i = 0; _i < ids.length; _i += 10) batches.push(ids.slice(_i, _i + 10));
+
+      var allPrices = [];
+      for (var _b = 0; _b < batches.length; _b++) {
+        if (status) status.textContent = 'Prix terminaux ' + (_b * 10 + 1) + '/' + ids.length + '...';
+        try {
+          var _chunk = await apiFetch('commodities_prices?id_terminal=' + batches[_b].join(','));
+          if (Array.isArray(_chunk)) allPrices = allPrices.concat(_chunk);
+        } catch(e) {}
+        await new Promise(r => setTimeout(r, 150));
+      }
+
+      if (allPrices.length > 0) {
         const agg = {};
-        pricesArr.forEach(p => {
+        allPrices.forEach(p => {
           const cid = p.id_commodity;
           if (!cid) return;
-          const buy  = Number(p.price_buy  || p.trade_price_buy  || 0);
-          const sell = Number(p.price_sell || p.trade_price_sell || 0);
+          const buy  = Number(p.price_buy_min  || p.price_buy  || 0);
+          const sell = Number(p.price_sell_max || p.price_sell || 0);
           if (!agg[cid]) agg[cid] = { buys:[], sells:[] };
           if (buy  > 0) agg[cid].buys.push(buy);
           if (sell > 0) agg[cid].sells.push(sell);
@@ -4650,7 +4664,7 @@ async function syncFromUEX() {
             sell: sells.length ? Math.max(...sells) : (priceMap[cid]?.sell || 0),
           };
         });
-        if (status) status.textContent = pricesArr.length + ' prix terminaux chargés';
+        if (status) status.textContent = allPrices.length + ' prix chargés (' + ids.length + ' terminaux)';
       }
     } catch(e) {
       if (status) status.textContent = 'Fallback prix inline';
