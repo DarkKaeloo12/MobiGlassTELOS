@@ -2938,6 +2938,59 @@ async function loadArmurieCatalogue() {
   if (stored && Array.isArray(stored)) ARMURIE_CATALOGUE = stored;
 }
 
+async function importBlueprintsToArmurieData() {
+  const BP_ARMURE   = ['Helmet','Chest','Arms','Legs','Undersuit','Backpack','Core','Suit','Glove','Boot'];
+  const BP_ARME_VAI = ['Cannon','Gun','Laser','Missile','Torpedo','Turret','Repeater','Distortion','Neutron','Ballistic','Beam','Scattergun'];
+
+  function classifyBP(bp) {
+    const n = (bp.name || '').toLowerCase();
+    const cat = (bp.cat || '').toLowerCase();
+    if (cat === 'fps') {
+      if (BP_ARMURE.some(k => n.includes(k.toLowerCase()))) return 'armor';
+      return 'fps';
+    }
+    if (cat === 'vaisseau' || cat === 'ship') {
+      if (BP_ARME_VAI.some(k => n.includes(k.toLowerCase()))) return 'shipwep';
+      return 'shipcomp';
+    }
+    if (cat === 'composant') return 'shipcomp';
+    return 'fps';
+  }
+
+  const blueprints = (await DB.get('telos-blueprints')) || [];
+  if (!blueprints.length) { toast('Aucun blueprint trouvé','','error'); return; }
+
+  const existing = (await DB.get('telos-armurie-custom')) || [];
+  const existingNames = new Set(existing.map(x => (x.name||'').toLowerCase()));
+
+  var added = 0;
+  const now = new Date().toISOString();
+
+  blueprints.forEach(bp => {
+    if (!bp.name) return;
+    if (existingNames.has(bp.name.toLowerCase())) return;
+    existing.push({
+      id:       'arm_bp_' + (bp.id || Date.now() + '_' + Math.random().toString(36).slice(2,5)),
+      name:     bp.name,
+      tab:      classifyBP(bp),
+      type:     '',
+      prix:     0,
+      loc:      '',
+      note:     'Blueprint' + (bp.craftTime ? ' · ' + bp.craftTime : ''),
+      fromBP:   true,
+      bpId:     bp.id,
+      addedAt:  now,
+    });
+    existingNames.add(bp.name.toLowerCase());
+    added++;
+  });
+
+  await DB.set('telos-armurie-custom', existing);
+  ARMURIE_CATALOGUE = existing;
+  toast(added + ' items importés depuis les blueprints', '', 'success');
+  renderArmurieCatalogue();
+}
+
 function setArmTab(tab, btn) {
   _armTab = tab;
   document.querySelectorAll('#panel-armurie [id^="arm-tab-"]').forEach(b => {
