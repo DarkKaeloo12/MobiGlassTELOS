@@ -4631,8 +4631,9 @@ async function syncFromUEX() {
     // Ensuite : commodities_prices par batch de 10 terminaux
     try {
       if (status) status.textContent = 'Chargement liste terminaux...';
-      const terminals = await apiFetch('terminals?id_star_system=68');
-      const termArr = Array.isArray(terminals) ? terminals : [];
+      const terminals1 = await apiFetch('terminals?id_star_system=68');
+      const terminals2 = await apiFetch('terminals?id_star_system=64');
+      const termArr = [...(Array.isArray(terminals1) ? terminals1 : []), ...(Array.isArray(terminals2) ? terminals2 : [])];
       const ids = termArr.map(t => t.id).filter(Boolean);
       const batches = [];
       for (var _i = 0; _i < ids.length; _i += 10) batches.push(ids.slice(_i, _i + 10));
