@@ -783,7 +783,9 @@ function showLoginWall(){} // stub
         <div class="sec-bar" style="flex-shrink:0;display:flex;justify-content:space-between;align-items:center;padding:10px 18px;">
           <span class="sec-title"><span class="acc">⚔</span> Data Armurie — Catalogue Star Citizen</span>
           <button onclick="addArmurieItem()" style="padding:4px 14px;border:1px solid rgba(247,140,30,0.5);background:transparent;color:var(--orange);font-family:var(--ui);font-size:10px;letter-spacing:1px;cursor:pointer;">+ AJOUTER</button>
+          <button onclick="importBlueprintsToArmurieData()" style="padding:4px 14px;border:1px solid rgba(247,140,30,0.3);background:transparent;color:var(--text-dim);font-family:var(--ui);font-size:10px;letter-spacing:1px;cursor:pointer;">📋 BLUEPRINTS</button>
         </div>
+
         <!-- Filtres catégories -->
         <div style="flex-shrink:0;display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 18px;background:var(--bg2);">
           <button id="arm-tab-fps"       onclick="setArmTab('fps',this)"       style="padding:9px 16px;border:none;border-bottom:2px solid var(--orange);background:transparent;color:var(--text-bright);font-family:var(--ui);font-size:11px;letter-spacing:1.5px;cursor:pointer;">🔫 ARMES FPS</button>
@@ -791,6 +793,7 @@ function showLoginWall(){} // stub
           <button id="arm-tab-shipwep"   onclick="setArmTab('shipwep',this)"   style="padding:9px 16px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text-dim);font-family:var(--ui);font-size:11px;letter-spacing:1.5px;cursor:pointer;">🚀 ARMES VAISSEAU</button>
           <button id="arm-tab-shipcomp"  onclick="setArmTab('shipcomp',this)"  style="padding:9px 16px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text-dim);font-family:var(--ui);font-size:11px;letter-spacing:1.5px;cursor:pointer;">⚙ COMPOSANTS</button>
         </div>
+        
         <!-- Toolbar recherche + filtre type -->
         <div class="toolbar" style="flex-shrink:0;gap:8px;padding:8px 16px;border-bottom:1px solid var(--border);">
           <div class="search-box" style="max-width:280px;flex:1;">
@@ -961,8 +964,9 @@ function showLoginWall(){} // stub
                         <span class="search-ico">⌕</span>
                         <input type="text" id="arm-item-search" placeholder="Rechercher..." oninput="renderArmTable()">
                       </div>
-                      <button class="btn primary" onclick="openAddArmItem('telos')" style="padding:5px 14px;font-size:11px;letter-spacing:1px;">+ Ajouter</button>
-                      <button class="btn danger" id="arm-remove-btn" onclick="openRMArmModal()" style="padding:5px 14px;font-size:11px;letter-spacing:1px;display:none;border-color:rgba(255,68,68,0.5);">— Retirer</button>
+                       <button class="btn primary" onclick="openAddArmItem('telos')" style="padding:5px 14px;font-size:11px;letter-spacing:1px;">+ Ajouter</button>
+                       <button class="btn" onclick="importBlueprintsToArmory()" style="padding:5px 14px;font-size:11px;letter-spacing:1px;">📋 Blueprints</button>
+                       <button class="btn danger" id="arm-remove-btn" onclick="openRMArmModal()" style="padding:5px 14px;font-size:11px;letter-spacing:1px;display:none;border-color:rgba(255,68,68,0.5);">— Retirer</button>
                     </div>
                   </div>
                   <div class="st-wrap">
