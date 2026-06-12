@@ -2057,7 +2057,14 @@ async function renderStocksFromPlayers() {
   _pushKPI(fA, fP, consolidated.length, players.length);
 
 
- // footer supprimé
+  const fEl =document.getElementById('telos-footer');
+  if (fEl) fEl.innerHTML=`
+    <div class="sf-cell" style="flex:2;"><div class="sf-lbl">Ressources uniques</div><div class="sf-val">${consolidated.length}</div></div>
+    <div class="sf-cell"><div class="sf-lbl">SCU</div><div class="sf-val">${fSCU.toLocaleString('fr-FR')}</div></div>
+    <div class="sf-cell"><div class="sf-lbl">Val. achat</div><div class="sf-val">${Math.round(fA).toLocaleString('fr-FR')} aUEC</div></div>
+    <div class="sf-cell"><div class="sf-lbl">Val. vente</div><div class="sf-val green">${Math.round(fV).toLocaleString('fr-FR')} aUEC</div></div>
+    <div class="sf-cell"><div class="sf-lbl">Profit</div><div class="sf-val" style="color:${fP>=0?'var(--green)':'var(--red)'};">${fP>=0?'+':''}${Math.round(fP).toLocaleString('fr-FR')} aUEC</div></div>
+  `;
 }
 
 function renderStocks(){ renderStocksFromPlayers(); }
@@ -2775,7 +2782,156 @@ function goToRessources(el) {
   goPanel('ressources', el);
 }
 
-var SC_DB = {};
+/* ════════════════════════════════════════════════════════════
+   DATA ARMURIE — Base de données Star Citizen intégrée
+════════════════════════════════════════════════════════════ */
+var ARMURIE_CATALOGUE = [];
+var _armTab = 'fps';
+
+// ── BASE DE DONNÉES STAR CITIZEN ──────────────────────────
+var SC_DB = {
+  fps: [
+    // Fusils d'assaut
+    {name:'Gemini L86 Rattler',    type:'Fusil d\'assaut', cal:'10mm',  dps:148, magazin:30,  fire:'Auto',  loc:'Lorville',      prix:4270},
+    {name:'Gallenson Tactical GT-220',type:'Fusil d\'assaut',cal:'4mm', dps:162, magazin:50,  fire:'Auto',  loc:'New Babbage',   prix:3850},
+    {name:'Kastak Arms Karna',     type:'Fusil d\'assaut', cal:'5mm',  dps:175, magazin:30,  fire:'Auto',  loc:'Area18',        prix:5120},
+    {name:'Klaus & Werner C54 Ballista',type:'Fusil d\'assaut',cal:'4mm',dps:155,magazin:50, fire:'Auto',  loc:'Lorville',      prix:3640},
+    {name:'Behring M55',           type:'Fusil d\'assaut', cal:'5mm',  dps:160, magazin:30,  fire:'Auto',  loc:'Multiple',      prix:4100},
+    {name:'Coda Tanto',            type:'Fusil d\'assaut', cal:'7mm',  dps:190, magazin:30,  fire:'Burst', loc:'Rappel',        prix:6200},
+    {name:'Coda K8',               type:'Fusil d\'assaut', cal:'7mm',  dps:145, magazin:30,  fire:'Auto',  loc:'Rappel',        prix:5800},
+    // Fusils de précision
+    {name:'Shroud Breaker',        type:'Sniper',          cal:'14mm', dps:620, magazin:5,   fire:'Semi',  loc:'Lorville',      prix:12400},
+    {name:'Behring BR2',           type:'Sniper',          cal:'14mm', dps:580, magazin:5,   fire:'Semi',  loc:'Lorville',      prix:8750},
+    {name:'Atzko "Igniter" Sniper Rifle',type:'Sniper',    cal:'14mm', dps:640, magazin:5,   fire:'Semi',  loc:'Levski',        prix:11200},
+    {name:'Atzkav "Sniper Rifle"', type:'Sniper',          cal:'14mm', dps:600, magazin:5,   fire:'Semi',  loc:'Multiple',      prix:9800},
+    {name:'Gerovit Onyx-C',        type:'Sniper',          cal:'11mm', dps:480, magazin:8,   fire:'Semi',  loc:'New Babbage',   prix:7300},
+    // SMG
+    {name:'Coda SMG-22',           type:'SMG',             cal:'4mm',  dps:180, magazin:30,  fire:'Auto',  loc:'Rappel',        prix:3200},
+    {name:'Kastak Arms Devastator',type:'SMG',             cal:'5mm',  dps:195, magazin:35,  fire:'Auto',  loc:'Area18',        prix:4500},
+    {name:'Behring P8-SC',         type:'SMG',             cal:'4mm',  dps:168, magazin:30,  fire:'Auto',  loc:'Multiple',      prix:2900},
+    // Pistolets
+    {name:'Gemini S71',            type:'Pistolet',        cal:'4mm',  dps:95,  magazin:12,  fire:'Semi',  loc:'Lorville',      prix:1850},
+    {name:'Behring P4-AR',         type:'Pistolet',        cal:'4mm',  dps:88,  magazin:16,  fire:'Semi',  loc:'Multiple',      prix:1600},
+    {name:'Klaus & Werner Arclight',type:'Pistolet',       cal:'Laser',dps:102, magazin:12,  fire:'Semi',  loc:'Area18',        prix:2200},
+    {name:'Kastak Arms Yubarev',   type:'Pistolet',        cal:'4mm',  dps:110, magazin:12,  fire:'Semi',  loc:'Area18',        prix:2100},
+    {name:'Coda Tarantula GT-870', type:'Pistolet',        cal:'7mm',  dps:130, magazin:8,   fire:'Semi',  loc:'Rappel',        prix:3100},
+    // Fusils à pompe
+    {name:'Kastak Arms Devastator-12',type:'Shotgun',      cal:'12G',  dps:320, magazin:8,   fire:'Semi',  loc:'Area18',        prix:5600},
+    {name:'Behring P6-LR',         type:'Shotgun',         cal:'12G',  dps:290, magazin:6,   fire:'Semi',  loc:'Lorville',      prix:4800},
+    // Armes énergétiques FPS
+    {name:'Gallenson Galtiur',     type:'Laser',           cal:'Laser',dps:145, magazin:25,  fire:'Auto',  loc:'New Babbage',   prix:5200},
+    {name:'Klaus & Werner Skorp',  type:'Laser',           cal:'Laser',dps:200, magazin:20,  fire:'Semi',  loc:'Area18',        prix:7400},
+    // Armes de soutien
+    {name:'Behring M55-R LMG',     type:'LMG',             cal:'5mm',  dps:220, magazin:100, fire:'Auto',  loc:'Multiple',      prix:8200},
+    {name:'Coda Tanto LMG',        type:'LMG',             cal:'7mm',  dps:240, magazin:80,  fire:'Auto',  loc:'Rappel',        prix:9500},
+    // Grenades & explosifs
+    {name:'Behring Grenade Frag',  type:'Grenade',         cal:'—',    dps:800, magazin:1,   fire:'Throw', loc:'Multiple',      prix:450},
+    {name:'Behring Grenade Flashbang',type:'Grenade',      cal:'—',    dps:0,   magazin:1,   fire:'Throw', loc:'Multiple',      prix:380},
+    {name:'Behring Grenade EMP',   type:'Grenade',         cal:'—',    dps:0,   magazin:1,   fire:'Throw', loc:'Multiple',      prix:520},
+    {name:'Thermite Grenade',      type:'Grenade',         cal:'—',    dps:600, magazin:1,   fire:'Throw', loc:'Multiple',      prix:680},
+    // Corps à corps
+    {name:'Multitool',             type:'Mêlée',           cal:'—',    dps:25,  magazin:0,   fire:'Melee', loc:'Multiple',      prix:1200},
+    {name:'Tactical Knife',        type:'Mêlée',           cal:'—',    dps:45,  magazin:0,   fire:'Melee', loc:'Multiple',      prix:350},
+    {name:'Combat Knife',          type:'Mêlée',           cal:'—',    dps:55,  magazin:0,   fire:'Melee', loc:'Multiple',      prix:480},
+  ],
+  armor: [
+    // Light
+    {name:'Lightflite Light Undersuit',type:'Sous-armure',  tiers:'Light', résistance:'—',    bonus:'Mobilité +15%',   loc:'New Babbage', prix:2200},
+    {name:'Novikov Light Undersuit', type:'Sous-armure',    tiers:'Light', résistance:'—',    bonus:'Agilité +10%',    loc:'Area18',      prix:1950},
+    {name:'Pembroke Undersuit',      type:'Sous-armure',    tiers:'Light', résistance:'—',    bonus:'Camouflage +5%',  loc:'Area18',      prix:2100},
+    {name:'UEE Navy Light Helmet',   type:'Casque',         tiers:'Light', résistance:'15%',  bonus:'HUD amélioré',    loc:'Lorville',    prix:3400},
+    {name:'Pembroke Helmet',         type:'Casque',         tiers:'Light', résistance:'12%',  bonus:'Discrétion +8%',  loc:'Area18',      prix:2800},
+    // Medium
+    {name:'Calva Medium Armor',      type:'Armure complète',tiers:'Medium',résistance:'35%',  bonus:'Standard',        loc:'Multiple',    prix:12500},
+    {name:'Pyrochem Medium Armor',   type:'Armure complète',tiers:'Medium',résistance:'38%',  bonus:'Chaleur +20%',    loc:'Area18',      prix:14200},
+    {name:'RSI Phoenix Medium Armor',type:'Armure complète',tiers:'Medium',résistance:'40%',  bonus:'Balance',         loc:'Lorville',    prix:18000},
+    {name:'Calva Torso Plate',       type:'Torse',          tiers:'Medium',résistance:'35%',  bonus:'Standard',        loc:'Multiple',    prix:5200},
+    {name:'Calva Leg Plates',        type:'Jambes',         tiers:'Medium',résistance:'30%',  bonus:'Standard',        loc:'Multiple',    prix:3800},
+    {name:'Calva Arm Plates',        type:'Bras',           tiers:'Medium',résistance:'28%',  bonus:'Standard',        loc:'Multiple',    prix:3200},
+    {name:'UEE Combat Helmet Med.',  type:'Casque',         tiers:'Medium',résistance:'40%',  bonus:'Vision nocturne', loc:'Lorville',    prix:6500},
+    {name:'Novikov Medium Helmet',   type:'Casque',         tiers:'Medium',résistance:'35%',  bonus:'Scan amélioré',   loc:'Area18',      prix:5800},
+    // Heavy
+    {name:'Titan Armor Heavy',       type:'Armure complète',tiers:'Heavy', résistance:'65%',  bonus:'Bouclier +25%',   loc:'Lorville',    prix:48000},
+    {name:'Pyrochem Heavy Torso',    type:'Torse',          tiers:'Heavy', résistance:'60%',  bonus:'Chaleur +30%',    loc:'Area18',      prix:18000},
+    {name:'Titan Heavy Helm',        type:'Casque',         tiers:'Heavy', résistance:'62%',  bonus:'Scan 360°',       loc:'Lorville',    prix:14500},
+    {name:'Titan Heavy Legs',        type:'Jambes',         tiers:'Heavy', résistance:'58%',  bonus:'Stabilité +20%',  loc:'Lorville',    prix:12000},
+    {name:'Titan Heavy Arms',        type:'Bras',           tiers:'Heavy', résistance:'55%',  bonus:'Grip amélioré',   loc:'Lorville',    prix:10500},
+    // Combinaisons spatiales
+    {name:'Hurston Worker Suit',     type:'Combinaison',    tiers:'EVA',   résistance:'20%',  bonus:'EVA / Toxic',     loc:'Lorville',    prix:5400},
+    {name:'microTech Worker Suit',   type:'Combinaison',    tiers:'EVA',   résistance:'20%',  bonus:'EVA / Froid',     loc:'New Babbage', prix:5200},
+    {name:'ArcCorp Worker Suit',     type:'Combinaison',    tiers:'EVA',   résistance:'20%',  bonus:'EVA Standard',    loc:'Area18',      prix:4900},
+    {name:'Virgil Armor Set',        type:'Armure complète',tiers:'Medium',résistance:'42%',  bonus:'UEC Recovery',    loc:'Hurston',     prix:22000},
+    // Médical
+    {name:'Lifeline Medic Suit',     type:'Médical',        tiers:'Medium',résistance:'30%',  bonus:'Heal +20%',       loc:'Multiple',    prix:9800},
+  ],
+  shipwep: [
+    // S1
+    {name:'Behring S1 Mass Driver',   taille:'S1', type:'Ballistic',  dps:68,   energie:'—',   portée:1500,  loc:'Multiple',  prix:2100},
+    {name:'Klaus S1 ForceFull',       taille:'S1', type:'Distortion', dps:55,   energie:12,    portée:1200,  loc:'Area18',    prix:1850},
+    {name:'Kroneg FL-33 Laser',       taille:'S1', type:'Laser',      dps:72,   energie:14,    portée:1600,  loc:'Lorville',  prix:2400},
+    {name:'Gallenson G-12A Laser',    taille:'S1', type:'Laser',      dps:65,   energie:13,    portée:1500,  loc:'New Babbage',prix:2200},
+    // S2
+    {name:'Behring M2A Laser Cannon', taille:'S2', type:'Laser',      dps:180,  energie:28,    portée:2000,  loc:'Multiple',  prix:8500},
+    {name:'Klaus S2 ForceFull',       taille:'S2', type:'Distortion', dps:145,  energie:30,    portée:1800,  loc:'Area18',    prix:7200},
+    {name:'CF-227 Badger Repeater',   taille:'S2', type:'Laser',      dps:165,  energie:25,    portée:1800,  loc:'Multiple',  prix:7800},
+    {name:'Apocalypse Sword',         taille:'S2', type:'Ballistic',  dps:190,  energie:'—',   portée:1800,  loc:'Area18',    prix:9200},
+    {name:'Behring S2 Neutron Cannon',taille:'S2', type:'Neutron',    dps:210,  energie:35,    portée:2200,  loc:'Lorville',  prix:11000},
+    // S3
+    {name:'Behring M3A Laser Cannon', taille:'S3', type:'Laser',      dps:380,  energie:55,    portée:2500,  loc:'Multiple',  prix:22000},
+    {name:'Vanduul Glaive Cannon',    taille:'S3', type:'Laser',      dps:420,  energie:60,    portée:2800,  loc:'Levski',    prix:28000},
+    {name:'Klaus S3 ForceFull',       taille:'S3', type:'Distortion', dps:310,  energie:58,    portée:2400,  loc:'Area18',    prix:18500},
+    {name:'CF-337 Panther Repeater',  taille:'S3', type:'Laser',      dps:350,  energie:52,    portée:2400,  loc:'Multiple',  prix:20000},
+    {name:'Apocalypse Ravager',       taille:'S3', type:'Ballistic',  dps:390,  energie:'—',   portée:2300,  loc:'Area18',    prix:24000},
+    {name:'Behring Neutron S3',       taille:'S3', type:'Neutron',    dps:440,  energie:65,    portée:2700,  loc:'Lorville',  prix:30000},
+    // S4
+    {name:'Turret Laser S4',          taille:'S4', type:'Laser',      dps:680,  energie:95,    portée:3000,  loc:'Multiple',  prix:58000},
+    {name:'Behring M5A Laser',        taille:'S4', type:'Laser',      dps:720,  energie:100,   portée:3200,  loc:'Multiple',  prix:65000},
+    // Missiles
+    {name:'Marksman Missile S1',      taille:'S1', type:'Missile',    dps:2500, energie:'—',   portée:5000,  loc:'Multiple',  prix:800},
+    {name:'Dominator Missile S2',     taille:'S2', type:'Missile',    dps:6000, energie:'—',   portée:7000,  loc:'Multiple',  prix:2200},
+    {name:'Devastator Missile S3',    taille:'S3', type:'Missile',    dps:14000,energie:'—',   portée:9000,  loc:'Multiple',  prix:6800},
+    {name:'Striker Torpedo S5',       taille:'S5', type:'Torpille',   dps:35000,energie:'—',   portée:15000, loc:'Multiple',  prix:28000},
+    {name:'Typhoon Torpedo S9',       taille:'S9', type:'Torpille',   dps:120000,energie:'—',  portée:25000, loc:'Multiple',  prix:95000},
+    // Canons de tourelle
+    {name:'Tarantula GT-870 Turret',  taille:'S3', type:'Ballistic',  dps:410,  energie:'—',   portée:2500,  loc:'Area18',    prix:25000},
+    {name:'Mantis GT-220 Turret',     taille:'S2', type:'Ballistic',  dps:175,  energie:'—',   portée:2000,  loc:'Area18',    prix:9000},
+  ],
+  shipcomp: [
+    // Boucliers
+    {name:'Gorgon Defender S1',         cat:'Bouclier', taille:'S1', qualité:'A', hp:900,  regen:32,  loc:'Lorville',    prix:8500},
+    {name:'Phalanx S1',                 cat:'Bouclier', taille:'S1', qualité:'A', hp:850,  regen:28,  loc:'Multiple',    prix:7800},
+    {name:'Gorgon Defender S2',         cat:'Bouclier', taille:'S2', qualité:'A', hp:2200, regen:65,  loc:'Lorville',    prix:24000},
+    {name:'Ares TAC Shield S2',         cat:'Bouclier', taille:'S2', qualité:'A', hp:2400, regen:70,  loc:'Lorville',    prix:28000},
+    {name:'Gorgon Defender S3',         cat:'Bouclier', taille:'S3', qualité:'A', hp:5500, regen:140, loc:'Lorville',    prix:72000},
+    // Propulseurs
+    {name:'Aves T7 Thruster S1',        cat:'Propulseur',taille:'S1', qualité:'A', tp:14.2, eff:'95%', loc:'Area18',     prix:6200},
+    {name:'Aegis ARLON-3 Thruster',     cat:'Propulseur',taille:'S2', qualité:'A', tp:38.5, eff:'92%', loc:'Area18',     prix:18500},
+    {name:'Origin 300 Retro Thruster',  cat:'Propulseur',taille:'S1', qualité:'B', tp:12.0, eff:'88%', loc:'New Babbage',prix:5400},
+    // Moteurs quantiques
+    {name:'ACOM FR-86 Quantum Drive',   cat:'Quantum',  taille:'S1', qualité:'A', vitesse:109,   portée:32,  loc:'Area18',    prix:12000},
+    {name:'Wei-Tek TS1 Quantum Drive',  cat:'Quantum',  taille:'S1', qualité:'B', vitesse:103,   portée:30,  loc:'New Babbage',prix:9500},
+    {name:'ACOM FR-87 Quantum Drive',   cat:'Quantum',  taille:'S2', qualité:'A', vitesse:110,   portée:42,  loc:'Area18',    prix:32000},
+    {name:'ACOM FR-88 Quantum Drive',   cat:'Quantum',  taille:'S3', qualité:'A', vitesse:112,   portée:55,  loc:'Area18',    prix:88000},
+    // Réacteurs
+    {name:'Tiger S1 Power Plant',       cat:'Réacteur', taille:'S1', qualité:'A', pw:900,  eff:'92%', loc:'Lorville',    prix:9200},
+    {name:'AICS Dragon S1',             cat:'Réacteur', taille:'S1', qualité:'A', pw:950,  eff:'95%', loc:'Area18',      prix:11000},
+    {name:'Tiger S2 Power Plant',       cat:'Réacteur', taille:'S2', qualité:'A', pw:2800, eff:'91%', loc:'Lorville',    prix:28000},
+    {name:'AICS Dragon S2',             cat:'Réacteur', taille:'S2', qualité:'A', pw:3200, eff:'94%', loc:'Area18',      prix:36000},
+    // Refroidissement
+    {name:'Snowpack S1',                cat:'Refro',    taille:'S1', qualité:'A', ir:'-18%',eff:'96%', loc:'New Babbage', prix:7800},
+    {name:'Ice-Flush S2',               cat:'Refro',    taille:'S2', qualité:'A', ir:'-22%',eff:'94%', loc:'New Babbage', prix:22000},
+    // Radar & scanner
+    {name:'PRAR Omnisky S1',            cat:'Radar',    taille:'S1', qualité:'A', portée:8000,  refresh:'25Hz', loc:'Area18',   prix:8500},
+    {name:'PRAR Omnisky S2',            cat:'Radar',    taille:'S2', qualité:'A', portée:15000, refresh:'30Hz', loc:'Area18',   prix:24000},
+    {name:'ACOM SkyEye',               cat:'Radar',    taille:'S2', qualité:'A', portée:18000, refresh:'35Hz', loc:'Lorville', prix:28000},
+    // Carburant hydrogen
+    {name:'Fuel Tank Civitas S1',       cat:'Carburant',taille:'S1', qualité:'A', capa:'50L', regen:'8L/s', loc:'Multiple', prix:4200},
+    {name:'Fuel Tank Civitas S2',       cat:'Carburant',taille:'S2', qualité:'A', capa:'150L',regen:'18L/s',loc:'Multiple', prix:12000},
+    // Carburant quantique
+    {name:'QT Fuel Tank S1',            cat:'QT Fuel',  taille:'S1', qualité:'A', capa:'320L',regen:'—',   loc:'Multiple', prix:5800},
+    {name:'QT Fuel Tank S2',            cat:'QT Fuel',  taille:'S2', qualité:'A', capa:'980L',regen:'—',   loc:'Multiple', prix:16000},
+  ]
+};
 
 async function loadArmurieCatalogue() {
   const stored = await DB.get('telos-armurie-custom');
@@ -8470,4 +8626,6 @@ async function saveBankTransaction() {
   toast(_bankEditId?'Transaction modifiée':'Transaction enregistrée', desc, 'success');
   _bankEditId = null;
 }
+
+
 
