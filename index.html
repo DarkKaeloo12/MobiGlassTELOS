@@ -817,6 +817,100 @@ function showLoginWall(){} // stub
         </div>
       </div>
 
+<!-- ══ MODAL ÉDITION DATA ARMURIE ══ -->
+<div id="arm-cat-edit-overlay" class="overlay" onclick="if(event.target===this)closeArmCatEdit()">
+  <div class="modal" style="max-width:540px;" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <span class="modal-title" id="arm-cat-edit-title">✏ MODIFIER L'ENTRÉE</span>
+      <button class="modal-close" onclick="closeArmCatEdit()">✕</button>
+    </div>
+    <div class="modal-body" style="gap:12px;">
+
+      <!-- Catégorie (tab) -->
+      <div class="form-field">
+        <label class="form-lbl">Catégorie</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button type="button" class="cat-sel-btn" data-acet="fps"      onclick="selectArmCatEdit('fps')"      style="flex:1;padding:6px 10px;font-size:11px;">🔫 Armes FPS</button>
+          <button type="button" class="cat-sel-btn" data-acet="armor"    onclick="selectArmCatEdit('armor')"    style="flex:1;padding:6px 10px;font-size:11px;">🛡 Armures FPS</button>
+          <button type="button" class="cat-sel-btn" data-acet="shipwep"  onclick="selectArmCatEdit('shipwep')"  style="flex:1;padding:6px 10px;font-size:11px;">🚀 Armes Vaisseau</button>
+          <button type="button" class="cat-sel-btn" data-acet="shipcomp" onclick="selectArmCatEdit('shipcomp')" style="flex:1;padding:6px 10px;font-size:11px;">⚙ Composants</button>
+        </div>
+        <input type="hidden" id="acet-tab">
+      </div>
+
+      <!-- Nom -->
+      <div class="form-field">
+        <label class="form-lbl">Nom <span class="req">*</span></label>
+        <input class="form-input" type="text" id="acet-name" placeholder="ex: Omnisky IX Cannon" maxlength="120">
+      </div>
+
+      <!-- Champs communs : TYPE et CALIBRE/TAILLE -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-field">
+          <label class="form-lbl" id="acet-lbl-type">Type</label>
+          <input class="form-input" type="text" id="acet-type" placeholder="ex: Cannon, Rifle...">
+        </div>
+        <div class="form-field" id="acet-field-cal">
+          <label class="form-lbl" id="acet-lbl-cal">Calibre / Taille</label>
+          <input class="form-input" type="text" id="acet-cal" placeholder="ex: .50, S3...">
+        </div>
+      </div>
+
+      <!-- DPS / Énergie / Tier selon catégorie -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-field" id="acet-field-dps">
+          <label class="form-lbl">DPS</label>
+          <input class="form-input" type="number" id="acet-dps" placeholder="ex: 142" min="0">
+        </div>
+        <div class="form-field" id="acet-field-mag">
+          <label class="form-lbl" id="acet-lbl-mag">Magasin / Énergie</label>
+          <input class="form-input" type="text" id="acet-mag" placeholder="ex: 30, 120u...">
+        </div>
+      </div>
+
+      <!-- Cadence / Portée / Bonus selon catégorie -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;" id="acet-row-extra">
+        <div class="form-field">
+          <label class="form-lbl" id="acet-lbl-fire">Cadence / Portée</label>
+          <input class="form-input" type="text" id="acet-fire" placeholder="ex: Semi-auto, 2500m...">
+        </div>
+        <div class="form-field" id="acet-field-bonus">
+          <label class="form-lbl" id="acet-lbl-bonus">Bonus / Stats</label>
+          <input class="form-input" type="text" id="acet-bonus" placeholder="ex: +Résistance EMP">
+        </div>
+      </div>
+
+      <!-- Lieu + Prix -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-field">
+          <label class="form-lbl">Lieu d'achat</label>
+          <input class="form-input" type="text" id="acet-loc" placeholder="ex: Lorville, Orison...">
+        </div>
+        <div class="form-field">
+          <label class="form-lbl">Prix (aUEC)</label>
+          <input class="form-input" type="number" id="acet-prix" placeholder="ex: 45000" min="0">
+        </div>
+      </div>
+
+      <!-- Note -->
+      <div class="form-field">
+        <label class="form-lbl">Note</label>
+        <input class="form-input" type="text" id="acet-note" placeholder="Optionnel...">
+      </div>
+
+      <!-- Badge item SC_DB (lecture seule) -->
+      <div id="acet-scdb-notice" style="display:none;padding:6px 10px;border:1px solid rgba(247,140,30,0.3);background:rgba(247,140,30,0.05);font-size:10px;color:var(--text-dim);font-family:var(--mono);">
+        ⚠ Item issu du catalogue SC_DB — seuls Lieu et Prix sont modifiés localement (override).
+      </div>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeArmCatEdit()">Annuler</button>
+      <button class="btn success" onclick="saveArmCatEdit()" style="letter-spacing:1px;">💾 ENREGISTRER</button>
+    </div>
+  </div>
+</div>
+
       <!-- ══ OBJECTIFS ══ -->
       <div class="panel" id="panel-objectifs" style="flex-direction:column;gap:0;">
 

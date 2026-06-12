@@ -33,6 +33,7 @@ document.addEventListener('click', function(e) {
     case 'miss-delete':   deleteMission(id); break;
     case 'arm-select':    selectArmPlayer(id); break;
     case 'arm-edit':      openAddArmItem(id); break;
+    case 'arm-cat-edit':  openArmCatEdit(id); break;
     case 'arm-del':       deleteArmItem(id, event?.target?.closest('[data-name]')?.dataset?.name||id); break;
   }
 });
@@ -2896,7 +2897,7 @@ function renderArmurie() {
     shipwep:  ['Nom','Taille','Type','DPS','Énergie','Portée (m)','Lieu','Prix aUEC'],
     shipcomp: ['Nom','Catégorie','Taille','Qualité','Stats 1','Stats 2','Lieu','Prix aUEC'],
   };
-  if (thead) thead.innerHTML = '<tr>' + (HEADERS[_armTab]||[]).map(h => `<th>${h}</th>`).join('') + '</tr>';
+  if (thead) thead.innerHTML = '<tr><th style="width:30px;"></th>' + (HEADERS[_armTab]||[]).map(h => `<th>${h}</th>`).join('') + '</tr>';
 
   if (!base.length) {
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-dim);">Aucun résultat</td></tr>';
@@ -2905,6 +2906,7 @@ function renderArmurie() {
 
   const fmt = n => n ? Number(n).toLocaleString('fr-FR') : '—';
 
+  const _canEdit = canManageRoles();
   tbody.innerHTML = base.map(item => {
     let cells = '';
     if (_armTab === 'fps') {
@@ -2949,7 +2951,10 @@ function renderArmurie() {
         <td style="font-size:11px;color:var(--text-dim);">${esc(item.loc||'—')}</td>
         <td style="font-family:var(--mono);color:var(--green);">${item.prix ? fmt(item.prix)+' aUEC' : '—'}</td>`;
     }
-    return `<tr onmouseover="this.style.background='rgba(247,140,30,0.04)'" onmouseout="this.style.background=''">${cells}</tr>`;
+    const editBtn = _canEdit
+      ? `<td style="width:30px;text-align:center;"><button data-action="arm-cat-edit" data-id="${esc(item.id||('scdb_'+item.name))}" style="background:transparent;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;padding:2px 5px;" title="Modifier">✎</button></td>`
+      : '<td></td>';
+    return `<tr onmouseover="this.style.background='rgba(247,140,30,0.04)'" onmouseout="this.style.background=''">${editBtn}${cells}</tr>`;
   }).join('');
 }
 
@@ -2966,7 +2971,181 @@ function addArmurieItem() {
 }
 
 
-var OBJECTIFS = [];
+var _armCatEditId   = null;  // id item en cours d'édition
+var _armCatEditScdb = false; // true = item SC_DB (pas de custom existant)
+
+// ── Ouvre le modal d'édition catalogue armurie ──────────────────────────────
+function openArmCatEdit(rawId) {
+  if (!canManageRoles()) { toast('Accès refusé', 'Réservé aux Admins et Gestionnaires.', 'error'); return; }
+
+  // Chercher d'abord dans les items custom
+  var custom = ARMURIE_CATALOGUE.find(i => i.id === rawId);
+
+  // Si pas trouvé → item SC_DB, on crée un override à la volée
+  var item   = custom || null;
+  var isScdb = !custom;
+
+  // Trouver dans SC_DB si besoin (pour pré-remplir les champs)
+  var scdbItem = null;
+  if (isScdb) {
+    ['fps','armor','shipwep','shipcomp'].forEach(function(tab) {
+      var found = (SC_DB[tab]||[]).find(function(x){ return ('scdb_'+x.name)===rawId || x.id===rawId; });
+      if (found) scdbItem = Object.assign({}, found, {tab: tab});
+    });
+  }
+
+  var src = item || scdbItem || {};
+
+  _armCatEditId   = rawId;
+  _armCatEditScdb = isScdb;
+
+  var tab = src.tab || _armTab || 'fps';
+
+  // Peupler les champs
+  var s = function(id,v){ var el=document.getElementById(id); if(el) el.value=(v===undefined||v===null)?'':v; };
+  s('acet-tab',   tab);
+  s('acet-name',  src.name||'');
+  s('acet-type',  src.type||'');
+  // Champs selon tab
+  s('acet-cal',   src.cal||src.taille||src.tier||src.qualité||'');
+  s('acet-dps',   src.dps||'');
+  s('acet-mag',   src.magazin||src.energie||src.hp||'');
+  s('acet-fire',  src.fire||src.portée||src.résistance||'');
+  s('acet-bonus', src.bonus||src.note||'');
+  s('acet-loc',   src.loc||'');
+  s('acet-prix',  src.prix||'');
+  s('acet-note',  isScdb ? '' : (src.note||''));
+
+  // Notice SC_DB
+  var notice = document.getElementById('acet-scdb-notice');
+  if (notice) notice.style.display = isScdb ? '' : 'none';
+
+  // Titre
+  var title = document.getElementById('arm-cat-edit-title');
+  if (title) title.textContent = '✏ MODIFIER — ' + (src.name||'...');
+
+  // Boutons catégorie
+  selectArmCatEdit(tab);
+
+  // Champ nom: désactivé pour SC_DB
+  var nameEl = document.getElementById('acet-name');
+  if (nameEl) nameEl.disabled = isScdb;
+
+  document.getElementById('arm-cat-edit-overlay').classList.add('open');
+}
+
+function selectArmCatEdit(tab) {
+  var el = document.getElementById('acet-tab');
+  if (el) el.value = tab;
+
+  document.querySelectorAll('#arm-cat-edit-overlay .cat-sel-btn').forEach(function(b) {
+    var on = b.dataset.acet === tab;
+    b.style.borderColor = on ? 'var(--orange)' : 'var(--border)';
+    b.style.color       = on ? 'var(--orange)' : 'var(--text-dim)';
+    b.style.background  = on ? 'rgba(247,140,30,0.1)' : 'transparent';
+  });
+
+  // Adapter les labels selon le tab
+  var lblCal   = document.getElementById('acet-lbl-cal');
+  var lblMag   = document.getElementById('acet-lbl-mag');
+  var lblFire  = document.getElementById('acet-lbl-fire');
+  var lblBonus = document.getElementById('acet-lbl-bonus');
+  var lblType  = document.getElementById('acet-lbl-type');
+
+  if (tab === 'fps') {
+    if (lblCal)   lblCal.textContent   = 'Calibre';
+    if (lblMag)   lblMag.textContent   = 'Magasin';
+    if (lblFire)  lblFire.textContent  = 'Cadence';
+    if (lblBonus) lblBonus.textContent = 'Note';
+    if (lblType)  lblType.textContent  = 'Type';
+  } else if (tab === 'armor') {
+    if (lblCal)   lblCal.textContent   = 'Tier (Light/Medium/Heavy)';
+    if (lblMag)   lblMag.textContent   = 'Résistance';
+    if (lblFire)  lblFire.textContent  = 'Portée / Stats';
+    if (lblBonus) lblBonus.textContent = 'Bonus';
+    if (lblType)  lblType.textContent  = 'Type';
+  } else if (tab === 'shipwep') {
+    if (lblCal)   lblCal.textContent   = 'Taille (S1–S10)';
+    if (lblMag)   lblMag.textContent   = 'Énergie (u)';
+    if (lblFire)  lblFire.textContent  = 'Portée (m)';
+    if (lblBonus) lblBonus.textContent = 'Note';
+    if (lblType)  lblType.textContent  = 'Type';
+  } else {
+    if (lblCal)   lblCal.textContent   = 'Taille';
+    if (lblMag)   lblMag.textContent   = 'Stats 1';
+    if (lblFire)  lblFire.textContent  = 'Stats 2';
+    if (lblBonus) lblBonus.textContent = 'Qualité (A/B/C)';
+    if (lblType)  lblType.textContent  = 'Catégorie';
+  }
+}
+
+async function saveArmCatEdit() {
+  if (!canManageRoles()) { toast('Accès refusé', '', 'error'); return; }
+
+  var tab   = document.getElementById('acet-tab')?.value   || _armTab;
+  var name  = document.getElementById('acet-name')?.value.trim();
+  if (!name) { toast('Nom requis', '', 'error'); return; }
+
+  var g = function(id){ var e=document.getElementById(id); return e?e.value.trim():''; };
+
+  // Construire l'objet selon le tab
+  var base = {
+    id:      _armCatEditId,
+    tab:     tab,
+    name:    name,
+    type:    g('acet-type'),
+    loc:     g('acet-loc'),
+    prix:    parseFloat(g('acet-prix'))||0,
+    note:    g('acet-note'),
+    custom:  true,
+  };
+
+  if (tab === 'fps') {
+    base.cal     = g('acet-cal');
+    base.dps     = parseFloat(g('acet-dps'))||null;
+    base.magazin = g('acet-mag');
+    base.fire    = g('acet-fire');
+  } else if (tab === 'armor') {
+    base.tiers      = g('acet-cal');
+    base.résistance = g('acet-mag');
+    base.bonus      = g('acet-bonus');
+  } else if (tab === 'shipwep') {
+    base.taille  = g('acet-cal');
+    base.dps     = parseFloat(g('acet-dps'))||null;
+    base.energie = parseFloat(g('acet-mag'))||null;
+    base.portée  = parseFloat(g('acet-fire'))||null;
+  } else {
+    base.taille  = g('acet-cal');
+    base.qualité = g('acet-bonus');
+  }
+
+  if (_armCatEditScdb) {
+    // Item SC_DB : créer un override dans ARMURIE_CATALOGUE
+    // L'id reste 'scdb_<name>' pour pouvoir matcher si besoin
+    base.fromScdb = true;
+    base.id = 'scdb_override_' + name.replace(/\s+/g,'_').toLowerCase();
+    ARMURIE_CATALOGUE.push(base);
+  } else {
+    // Item custom existant : mettre à jour
+    var idx = ARMURIE_CATALOGUE.findIndex(function(i){ return i.id === _armCatEditId; });
+    if (idx >= 0) ARMURIE_CATALOGUE[idx] = base;
+    else ARMURIE_CATALOGUE.push(base);
+  }
+
+  await DB.set('telos-armurie-custom', ARMURIE_CATALOGUE);
+  closeArmCatEdit();
+  renderArmurie();
+  toast('Entrée mise à jour', name, 'success');
+}
+
+function closeArmCatEdit() {
+  var o = document.getElementById('arm-cat-edit-overlay');
+  if (o) o.classList.remove('open');
+  _armCatEditId = null;
+  _armCatEditScdb = false;
+}
+
+
 var _objTab = 'tous';
 var _editObjId = null;
 
@@ -7817,26 +7996,69 @@ function populateArmDbSelect(cat, currentName) {
   const sel = document.getElementById('arm-db-select');
   if (!sel) return;
   const dbKey = ARM_CAT_TO_DB[cat] || 'fps';
-  const items = (SC_DB[dbKey] || []).sort((a,b) => a.name.localeCompare(b.name,'fr'));
+
+  // Fusionner SC_DB + ARMURIE_CATALOGUE pour ce tab
+  const scItems     = (SC_DB[dbKey] || []).map(i => Object.assign({}, i, {_src:'scdb'}));
+  const customItems = (ARMURIE_CATALOGUE || [])
+    .filter(i => (i.tab||'fps') === dbKey)
+    .map(i => Object.assign({}, i, {_src:'custom'}));
+
+  // Dédoublonner : custom prioritaire sur SC_DB si même nom
+  const seen = new Set();
+  const merged = [];
+  customItems.forEach(i => { if (i.name) { seen.add(i.name.toLowerCase()); merged.push(i); } });
+  scItems.forEach(i => { if (i.name && !seen.has(i.name.toLowerCase())) merged.push(i); });
+  merged.sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+
   sel.innerHTML = '<option value="">— Catalogue Corp TELOS —</option>'
-    + items.map(i => `<option value="${i.name}"${i.name===currentName?' selected':''}>${i.name}</option>`).join('');
+    + merged.map(i => '<option value="' + esc(i.name) + '"' + (i.name === currentName ? ' selected' : '') + '>'
+        + esc(i.name) + (i._src === 'custom' ? ' \u2736' : '') + '</option>').join('');
   if (currentName) sel.value = currentName;
+
+  // Stocker la map nom->item pour armDbSelectChange
+  window._armDbMap = {};
+  merged.forEach(i => { window._armDbMap[i.name] = i; });
 }
 
 function armDbSelectChange(val) {
   if (!val) return;
-  const nameEl = document.getElementById('arm-name');
+  // Remplir le nom
+  var nameEl = document.getElementById('arm-name');
   if (nameEl) nameEl.value = val;
-  // Auto-fill prix achat depuis SC_DB
-  const cat = document.getElementById('arm-cat')?.value || 'arme_fps';
-  const dbKey = ARM_CAT_TO_DB[cat] || 'fps';
-  const found = (SC_DB[dbKey] || []).find(i => i.name === val);
-  if (found?.prix) {
-    const priceEl = document.getElementById('arm-price');
-    if (priceEl && !priceEl.value) priceEl.value = found.prix;
-    const locEl = document.getElementById('arm-loc');
-    if (locEl && !locEl.value && found.loc) locEl.value = found.loc;
+
+  // Chercher dans la map fusion SC_DB + ARMURIE_CATALOGUE
+  var found = (window._armDbMap && window._armDbMap[val]) || null;
+  if (!found) {
+    // Fallback direct SC_DB
+    var cat2 = document.getElementById('arm-cat')?.value || 'arme_fps';
+    var dbKey2 = ARM_CAT_TO_DB[cat2] || 'fps';
+    found = (SC_DB[dbKey2] || []).find(function(i){ return i.name === val; }) || null;
   }
+  if (!found) return;
+
+  var set = function(id, v) { var el = document.getElementById(id); if (el && v !== undefined && v !== null && String(v) !== '') el.value = v; };
+
+  // Prix + loc toujours remplis si disponibles
+  set('arm-price', found.prix || found.price || '');
+  set('arm-loc',   found.loc  || '');
+
+  // Construire une note avec les stats techniques (injectée si champ vide)
+  var stats = [];
+  if (found.type)       stats.push('Type : ' + found.type);
+  if (found.cal)        stats.push('Cal : ' + found.cal);
+  if (found.taille)     stats.push('Taille : S' + found.taille);
+  if (found.dps)        stats.push('DPS : ' + found.dps + '/s');
+  if (found.magazin)    stats.push('Mag : ' + found.magazin);
+  if (found.fire)       stats.push('Cadence : ' + found.fire);
+  if (found.tiers)      stats.push('Tier : ' + found.tiers);
+  if (found.résistance) stats.push('Rés : ' + found.résistance);
+  if (found.bonus)      stats.push(found.bonus);
+  if (found.energie)    stats.push('Énergie : ' + found.energie + 'u');
+  if (found.portée)     stats.push('Portée : ' + found.portée + 'm');
+  if (found.qualité)    stats.push('Qual : ' + found.qualité);
+
+  var noteEl = document.getElementById('arm-note');
+  if (noteEl && !noteEl.value && stats.length) noteEl.value = stats.join(' · ');
 }
 
 function syncArmQualityFromExact(val) {
