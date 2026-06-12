@@ -2057,14 +2057,7 @@ async function renderStocksFromPlayers() {
   _pushKPI(fA, fP, consolidated.length, players.length);
 
 
-  const fEl =document.getElementById('telos-footer');
-  if (fEl) fEl.innerHTML=`
-    <div class="sf-cell" style="flex:2;"><div class="sf-lbl">Ressources uniques</div><div class="sf-val">${consolidated.length}</div></div>
-    <div class="sf-cell"><div class="sf-lbl">SCU</div><div class="sf-val">${fSCU.toLocaleString('fr-FR')}</div></div>
-    <div class="sf-cell"><div class="sf-lbl">Val. achat</div><div class="sf-val">${Math.round(fA).toLocaleString('fr-FR')} aUEC</div></div>
-    <div class="sf-cell"><div class="sf-lbl">Val. vente</div><div class="sf-val green">${Math.round(fV).toLocaleString('fr-FR')} aUEC</div></div>
-    <div class="sf-cell"><div class="sf-lbl">Profit</div><div class="sf-val" style="color:${fP>=0?'var(--green)':'var(--red)'};">${fP>=0?'+':''}${Math.round(fP).toLocaleString('fr-FR')} aUEC</div></div>
-  `;
+ // footer supprimé
 }
 
 function renderStocks(){ renderStocksFromPlayers(); }
