@@ -96,11 +96,13 @@ function canManageRoles() {
 }
 
 // Peut éditer une commande EN COURS : Admin, Gestionnaire ou Lead
-function canEditCommandeEnCours() {
-  if (!SESSION) return false;
-  if (SESSION.isAdmin) return true;
-  const p = players.find(x => x.id === SESSION.pid);
-  return p?.role === 'Gestionnaire' || p?.role === 'Lead';
+// Peut éditer une commande selon son statut et le rôle
+function canEditCommande(c) {
+  if (!SESSION || !c) return false;
+  if (canManageRoles()) return true;
+  const isOwner = (c.createdBy && c.createdBy === SESSION.pid) || (c.client && c.client === SESSION.pid);
+  if (c.status === 'attente') return isOwner;
+  return false;
 }
 
 function updateNavRessources() { updateAllNav(); }
@@ -3803,7 +3805,7 @@ function renderCommandes() {
           if(c.status==='attente')                   _s+='<button data-action="cmd-status" data-id="'+c.id+'" data-id2="en_cours" style="'+S+'1px solid var(--orange);color:var(--orange);background:transparent;letter-spacing:1px;">▶ EN COURS</button>';
           if(c.status==='en_cours')                  _s+='<button data-action="cmd-status" data-id="'+c.id+'" data-id2="livree"   style="'+S+'1px solid var(--green);color:var(--green);background:rgba(0,255,163,0.07);font-weight:700;">✓ LIVRÉE</button>';
           if(c.status==='livree'||c.status==='annulee') _s+='<button data-action="cmd-status" data-id="'+c.id+'" data-id2="attente" style="'+S+'1px solid var(--text-dim);color:var(--text-dim);background:transparent;">↺ ROUVRIR</button>';
-          if(c.status!=='en_cours' || canEditCommandeEnCours())
+          if(canEditCommande(c))
           _s+='<button data-action="cmd-edit"   data-id="'+c.id+'" style="'+S+'1px solid var(--orange);color:var(--orange);background:transparent;">✏</button>';
           _s+='<button data-action="cmd-check"  data-id="'+c.id+'" title="Vérifier le stock TELOS" style="'+S+'1px solid rgba(89,208,255,0.5);color:#59d0ff;background:transparent;">📦</button>';
           _s+='<button data-action="cmd-delete" data-id="'+c.id+'" title="Supprimer" style="'+S+'1px solid rgba(255,68,68,0.5);color:var(--red);background:transparent;">🗑</button>';
@@ -4124,8 +4126,8 @@ function closeAddCommande() {
 
 function editCommande(id) {
   const c = COMMANDES.find(x => x.id === id);
-  if (c && c.status === 'en_cours' && !canEditCommandeEnCours()) {
-    toast('Accès refusé', 'Commande en cours — modification réservée aux Admins, Gestionnaires et Leads.', 'error');
+  if (c && !canEditCommande(c)) {
+    toast('Accès refusé', 'Modification non autorisée pour cette commande.', 'error');
     return;
   }
   openAddCommande(id);
@@ -4174,6 +4176,7 @@ async function saveCommande() {
     notes:     document.getElementById('cmd-notes')?.value.trim()||'',
     status:    _editCmdId?(COMMANDES.find(x=>x.id===_editCmdId)?.status||'attente'):'attente',
     createdAt: _editCmdId?(COMMANDES.find(x=>x.id===_editCmdId)?.createdAt||new Date().toISOString()):new Date().toISOString(),
+    createdBy: _editCmdId?(COMMANDES.find(x=>x.id===_editCmdId)?.createdBy||SESSION?.pid||''):(SESSION?.pid||''),
   };
 
   if (_editCmdId) {
