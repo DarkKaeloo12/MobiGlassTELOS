@@ -35,6 +35,7 @@ document.addEventListener('click', function(e) {
     case 'arm-edit':      openAddArmItem(id); break;
     case 'arm-cat-edit':  openArmCatEdit(id); break;
     case 'arm-del':       deleteArmItem(id, event?.target?.closest('[data-name]')?.dataset?.name||id); break;
+    case 'bank-delete':  deleteBankTransaction(id); break;
   }
 });
 
@@ -2778,6 +2779,7 @@ function goToRessources(el) {
 }
 
 var SC_DB = {};
+var _armTab = 'fps';
 
 async function loadArmurieCatalogue() {
   const stored = await DB.get('telos-armurie-custom');
