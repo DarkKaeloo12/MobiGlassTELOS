@@ -8196,8 +8196,101 @@ document.addEventListener('click', function(e) {
   }
 });
 
+// ── REALTIME SYNC ────────────────────────────────────────────────────────────
+var _realtimeChannel = null;
+
+function _getActivePanel() {
+  var p = document.querySelector('.panel.active');
+  return p ? p.id.replace('panel-', '') : null;
+}
+
+async function _reloadForKey(key) {
+  var panel = _getActivePanel();
+
+  if (key === 'uex-players' || key.startsWith('uex-stocks-') || key.startsWith('uex-armory-')) {
+    players = (await DB.get('uex-players')) || [];
+    if (panel === 'joueurs')    { renderGlobal(); updateGlobalFilter(); }
+    if (panel === 'stocks')     { renderStocksFromPlayers(); }
+    if (panel === 'partners')   { renderPartners(); }
+    if (panel === 'hub')        { renderHubBankStats(); renderActivity(); }
+  }
+  if (key === 'telos-bank' || key === 'telos-profit-history') {
+    await loadBankData();
+    await loadProfitHistory();
+    if (panel === 'banque')     { renderBanque(); }
+    if (panel === 'hub')        { renderHubBankStats(); drawChart(7); }
+  }
+  if (key === 'telos-commandes') {
+    await loadCommandes();
+    if (panel === 'commandes')  { renderCommandes(); }
+    if (panel === 'hub')        { renderActivity(); }
+  }
+  if (key === 'telos-missions') {
+    await loadMissions();
+    if (panel === 'missions')   { renderMissions(); }
+    if (panel === 'hub')        { renderActivity(); }
+  }
+  if (key === 'telos-objectifs') {
+    await loadObjectifs();
+    if (panel === 'objectifs')  { renderObjectifs(); }
+  }
+  if (key === 'telos-armurie-custom') {
+    await loadArmurieCatalogue();
+    if (panel === 'armurie')    { renderArmurie(); }
+  }
+  if (key === 'telos-historique') {
+    HISTORIQUE_DATA = (await DB.get('telos-historique')) || [];
+    if (panel === 'logs')       { renderFullLogs(); }
+    if (panel === 'hub')        { renderActivity(); renderSysLogs(); }
+  }
+  if (key === 'telos-ressource-catalogue') {
+    await loadRessourceCatalogue();
+    if (panel === 'ressources') { renderRessources().catch(()=>{}); }
+  }
+
+  updateBadges && updateBadges();
+  renderTopRes && renderTopRes();
+}
+
+function startRealtimeSync() {
+  var sb = getSB();
+  if (!sb || !sb.channel) {
+    console.warn('[TELOS Realtime] Supabase non disponible.');
+    return;
+  }
+  if (_realtimeChannel) { try { sb.removeChannel(_realtimeChannel); } catch(e) {} }
+
+  _realtimeChannel = sb
+    .channel('telos_store_changes')
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'telos_store' },
+      function(payload) {
+        var key = payload?.new?.key || payload?.old?.key;
+        if (!key) return;
+        var lastOwn = window._lastOwnWrite && window._lastOwnWrite[key];
+        if (lastOwn && Date.now() - lastOwn < 3000) return;
+        console.log('[TELOS Realtime] Changement détecté :', key);
+        _reloadForKey(key);
+      }
+    )
+    .subscribe(function(status) {
+      if (status === 'SUBSCRIBED')
+        console.log('[TELOS Realtime] Synchronisation en temps réel active.');
+      if (status === 'CLOSED' || status === 'CHANNEL_ERROR')
+        setTimeout(startRealtimeSync, 5000);
+    });
+}
+
+var _origDBset = DB.set.bind(DB);
+DB.set = async function(key, value) {
+  if (!window._lastOwnWrite) window._lastOwnWrite = {};
+  window._lastOwnWrite[key] = Date.now();
+  return _origDBset(key, value);
+};
+
 async function init(){
   await testSupabaseConnection();
+  startRealtimeSync();
   // Clock
   tick(); setInterval(tick,1000);
   // Static renders
