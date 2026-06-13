@@ -4378,7 +4378,7 @@ ${resumé}`,
 }
 
 // ── Discord Webhook — Notifications Commandes ────────────
-const DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1512816823270117546/c0f2J3-g3u-sbT2KKD3hrGcgBefHG3VFXgeVK-aqcvPLjkWcdrTOJViQtqy2GaaGm0Yi';
+const DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1515240542605414511/QLxdHc1kfi5_3PZaIOyijrQCnmtbSYH2CH__BWNuYoAL_jPXdsF0FfHKkjwowUhl_z-Y';
 
 async function notifyDiscord(commande, event) {
   try {
