@@ -8500,7 +8500,7 @@ function renderBankTransactions() {
           <!-- Supprimer -->
           <td style="padding:10px 8px;text-align:center;" onclick="event.stopPropagation()">
             ${canManageRoles()
-              ? `<button data-action="bank-delete" data-id="${t.id}"
+              ? `<button onclick="event.stopPropagation();deleteBankTransaction('${t.id}')"
                    style="padding:3px 7px;border:1px solid rgba(255,68,68,0.3);background:transparent;color:rgba(255,68,68,0.6);font-size:11px;cursor:pointer;opacity:0.6;" title="Supprimer"
                    onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">🗑</button>`
               : ''}
