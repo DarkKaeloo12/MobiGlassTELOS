@@ -3829,9 +3829,11 @@ function openAddCommande(editId) {
   const clientInput   = document.getElementById('cmd-client');
   const clientDisplay = document.getElementById('cmd-client-display');
   const forcedId   = SESSION?.pid || '';
-  const forcedName = players.find(p => p.id === forcedId)?.name || '—';
+  const forcedName = SESSION?.name || '—';
   const clientId   = (editId && canManageRoles() && c?.client) ? c.client : forcedId;
-  const clientName = players.find(p => p.id === clientId)?.name || forcedName;
+  const clientName = (editId && canManageRoles() && c?.client)
+    ? (players.find(p => p.id === c.client)?.name || c.client)
+    : forcedName;
   if (clientInput)   clientInput.value        = clientId;
   if (clientDisplay) clientDisplay.textContent = clientName;
 
