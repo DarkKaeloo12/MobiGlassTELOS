@@ -5047,6 +5047,7 @@ async function autoSyncUEX() {
 var BLUEPRINTS = [];
 var _bpFilter = 'all';
 var _bpCorpoMode = false;
+var _mesCatFilter = 'all';
 var _editBpId = null;
 var _bpIngredients = [];
 
@@ -5075,9 +5076,31 @@ async function saveBlueprints() {
 }
 
 function setBpFilter(f, btn) {
-  _bpFilter = f;
+  // Si mode "Mes Blueprints" actif et on clique sur un filtre cat → garder mes BP actif
+  const _mesModeActif = _bpFilter === 'mes' && ['vaisseau','fps','composant'].includes(f);
+  _bpFilter = _mesModeActif ? 'mes' : f;
   document.querySelectorAll('#panel-blueprints .filter-btn').forEach(b=>b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
+  if (_mesModeActif) {
+    // Garder "Mes Blueprints" actif + mettre en surbrillance le filtre cat
+    const mesBtn = document.querySelector('#panel-blueprints .filter-btn[onclick*="mes"]');
+    if (mesBtn) mesBtn.classList.add('active');
+    if (btn) btn.classList.add('active');
+  } else {
+    if (btn) btn.classList.add('active');
+  }
+  if (_bpFilter !== 'mes' && _bpFilter !== 'corpo') {
+    _bpCorpoMode = false;
+    const corpoBtn = document.getElementById('btn-bp-corpo');
+    if (corpoBtn) { corpoBtn.classList.remove('active'); corpoBtn.style.background='transparent'; }
+  }
+  if (_bpCorpoMode) {
+    const corpoBtn = document.getElementById('btn-bp-corpo');
+    if (corpoBtn) corpoBtn.classList.add('active');
+  }
+  if (_mesModeActif) _mesCatFilter = f;
+  else if (f === 'mes') _mesCatFilter = 'all';
+  else if (!_bpCorpoMode) _mesCatFilter = 'all';
+  renderBlueprints();
   if (_bpCorpoMode) {
     // En mode corpo : les filtres cat s'appliquent sans désactiver le modo corpo
     // Garder le bouton corpo actif visuellement
@@ -5130,6 +5153,10 @@ async function renderBlueprints() {
   } else if (_bpFilter === 'mes') {
     const myBpIds = (window._playerBpCache && window._playerBpCache[SESSION.pid]) || [];
     data = data.filter(b => myBpIds.includes(b.id));
+    // Filtre cat secondaire si actif
+    if (_mesCatFilter && _mesCatFilter !== 'all') {
+      data = data.filter(b => b.cat === _mesCatFilter);
+    }
   } else if (_bpFilter !== 'all') {
     data = data.filter(b => b.cat === _bpFilter);
   }
