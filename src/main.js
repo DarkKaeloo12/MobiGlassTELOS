@@ -5078,10 +5078,11 @@ function setBpFilter(f, btn) {
   _bpFilter = f;
   document.querySelectorAll('#panel-blueprints .filter-btn').forEach(b=>b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  if (f !== 'corpo') {
-    _bpCorpoMode = false;
+  if (_bpCorpoMode) {
+    // En mode corpo : les filtres cat s'appliquent sans désactiver le modo corpo
+    // Garder le bouton corpo actif visuellement
     const corpoBtn = document.getElementById('btn-bp-corpo');
-    if (corpoBtn) { corpoBtn.classList.remove('active'); corpoBtn.style.background = 'transparent'; }
+    if (corpoBtn) corpoBtn.classList.add('active');
   }
   renderBlueprints();
 }
