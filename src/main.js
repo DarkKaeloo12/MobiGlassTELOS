@@ -5827,12 +5827,12 @@ function renderTierBar(summary, containerId) {
       <div style="padding:7px 14px;border-right:1px solid var(--border);min-width:130px;flex-shrink:0;" title="Inférieur à 500 aUEC/SCU — Vente directe recommandée">
         <div style="font-size:9px;letter-spacing:1.5px;color:#ef4444;text-transform:uppercase;margin-bottom:2px;">🔴 Vente directe</div>
         <div style="font-family:var(--mono);font-size:14px;color:#ef4444;font-weight:700;">${fmt(summary.vente.qty)} <span style="font-size:9px;color:var(--text-dim);">SCU</span></div>
-        <div style="font-size:9px;color:var(--text-dim);margin-top:1px;">${fmtK(summary.vente.valVente)} aUEC · &lt;500</div>
+        <div style="font-size:9px;color:var(--text-dim);margin-top:1px;">${fmtK(summary.vente.valVente)} aUEC · Inférieur à 500</div>
       </div>
 
-      <!-- 500< (Craft Vaisseau + FPS) -->
+      <!-- Supérieur à 500 (Craft Vaisseau + FPS) -->
       <div style="padding:7px 14px;border-right:1px solid var(--border);min-width:150px;flex-shrink:0;" title="Supérieur à 500 aUEC/SCU — Craft Vaisseau &amp; FPS">
-        <div style="font-size:9px;letter-spacing:1.5px;color:var(--green);text-transform:uppercase;margin-bottom:2px;">🟢 500&lt;</div>
+        <div style="font-size:9px;letter-spacing:1.5px;color:var(--green);text-transform:uppercase;margin-bottom:2px;">🟢 Supérieur à 500</div>
         <div style="font-family:var(--mono);font-size:14px;color:var(--green);font-weight:700;">${fmt((summary.craft_ship.qty||0)+(summary.craft_fps.qty||0))} <span style="font-size:9px;color:var(--text-dim);">SCU</span></div>
         <div style="font-size:9px;color:var(--text-dim);margin-top:1px;">${fmtK((summary.craft_ship.valVente||0)+(summary.craft_fps.valVente||0))} aUEC · Supérieur à 500</div>
       </div>
