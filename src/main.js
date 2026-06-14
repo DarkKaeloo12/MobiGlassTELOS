@@ -5002,6 +5002,7 @@ async function syncFromUEXLocal() {
   await DB.set('telos-last-uex-sync', String(Date.now()));
   await refreshDatalist();
   populateResSelect();
+  
   // Forcer l'affichage du panel ressources et re-render
   const _rPanel = document.getElementById('panel-ressources');
   const _rNav   = document.getElementById('nav-ressources');
