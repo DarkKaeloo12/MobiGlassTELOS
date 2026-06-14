@@ -343,7 +343,7 @@ function showLoginWall(){} // stub
               <th onclick="sortStocks('cat')">Catégorie ↕</th>
               <th onclick="sortStocks('player')">Partenaire ↕</th>
               <th title="Pas de qualité assignée" style="color:var(--text-dim);cursor:default;white-space:nowrap;" onclick="sortStocks('qty_aucune')">⚪ Qté ↕<div style="font-size:8px;opacity:.7;">sans qual.</div></th>
-              <th title="Qualité &lt;500 — vente uniquement" style="color:var(--orange);cursor:default;white-space:nowrap;" onclick="sortStocks('qty_vente')">🔴 &lt;500 ↕</th>
+              <th title="Qualité Inférieur à 500 — vente uniquement" style="color:var(--orange);cursor:default;white-space:nowrap;" onclick="sortStocks('qty_vente')">🔴 Inférieur à 500 ↕</th>
               <th title="Qualité Supérieur à 500 — Craft (Vaisseau &amp; FPS)" style="color:var(--green);cursor:default;white-space:nowrap;" onclick="sortStocks('qty_craft500')">🟢 Supérieur à 500 ↕<div style="font-size:8px;opacity:.7;">Supérieur à 500</div></th>
               <th onclick="sortStocks('buy')">Prix achat ↕</th>
               <th onclick="sortStocks('sell')">Prix vente ↕</th>
@@ -553,8 +553,8 @@ function showLoginWall(){} // stub
                     <thead><tr>
                       <th>Ressource</th><th>Catégorie</th>
                       <th title="Pas de qualité assignée" style="color:var(--text-dim);white-space:nowrap;">⚪ Qté<div style="font-size:8px;opacity:.7;">sans qual.</div></th>
-                      <th title="Qualité &lt; 500 — vente uniquement" style="color:var(--orange);white-space:nowrap;">🔴 &lt;500</th>
-                      <th title="Qualité Supérieur à 500 — Craft (Vaisseau &amp; FPS)" style="color:var(--green);white-space:nowrap;">🟢 500&lt;<div style="font-size:8px;opacity:.7;">Supérieur à 500</div></th>
+                      <th title="Qualité Inférieur à 500 — vente uniquement" style="color:var(--orange);white-space:nowrap;">🔴 Inférieur à 500</th>
+                      <th title="Qualité Supérieur à 500 — Craft (Vaisseau &amp; FPS)" style="color:var(--green);white-space:nowrap;">🟢 Supérieur à 500<div style="font-size:8px;opacity:.7;">Supérieur à 500</div></th>
                       <th>Prix achat</th><th>Prix vente</th><th>Marge</th>
                       <th>Val. achat</th><th>Val. vente</th><th>Profit</th>
                       <th>📍 Localisation</th><th>Date</th><th>Action</th>
@@ -588,8 +588,8 @@ function showLoginWall(){} // stub
                     <thead><tr>
                       <th>Ressource</th><th>Catégorie</th>
                       <th title="Pas de qualité assignée" style="color:var(--text-dim);white-space:nowrap;">⚪ Qté<div style="font-size:8px;opacity:.7;">sans qual.</div></th>
-                      <th title="Qualité &lt; 500 — vente uniquement" style="color:var(--orange);white-space:nowrap;">🔴 &lt;500</th>
-                      <th title="Qualité Supérieur à 500 — Craft (Vaisseau &amp; FPS)" style="color:var(--green);white-space:nowrap;">🟢 500&lt;<div style="font-size:8px;opacity:.7;">Supérieur à 500</div></th>
+                      <th title="Qualité Inférieur à 500 — vente uniquement" style="color:var(--orange);white-space:nowrap;">🔴 Inférieur à 500</th>
+                      <th title="Qualité Supérieur à 500 — Craft (Vaisseau &amp; FPS)" style="color:var(--green);white-space:nowrap;">🟢 Supérieur à 500<div style="font-size:8px;opacity:.7;">Supérieur à 500</div></th>
                       <th>Prix achat</th><th>Prix vente</th><th>Marge</th>
                       <th>Val. achat</th><th>Val. vente</th><th>Profit</th>
                       <th>📍 Localisation</th><th>Date</th><th>Action</th>
@@ -1321,7 +1321,7 @@ function showLoginWall(){} // stub
         <div style="display:flex;gap:8px;align-items:flex-start;">
           <select class="form-input" id="ps-quality" style="flex:1;height:auto;padding:9px 11px;" onchange="updateQualityBadge(this)">
             <option value="">— Non spécifié —</option>
-            <option value="mediocre">💀 Médiocre  (&lt;500)</option>
+            <option value="mediocre">💀 Médiocre  (Inférieur à 500)</option>
             <option value="basique">🔴 Basique  (500–600)</option>
             <option value="acceptable">🟠 Acceptable  (600–700)</option>
             <option value="honnete">🟡 Honnête  (700–800)</option>
@@ -1742,12 +1742,12 @@ function showLoginWall(){} // stub
           <label class="form-lbl">Qualité requise <span style="color:var(--text-dim);font-size:9px;">détermine quel stock est comptabilisé</span></label>
           <select class="form-input" id="obj-quality" style="height:auto;padding:9px 11px;" onchange="onObjQualityChange(this.value)">
             <option value="">⚪ Sans qualité (stock non classé)</option>
-            <option value="mediocre">🔴 Médiocre — &lt;500 (vente uniquement)</option>
-            <option value="basique">🟢 Basique — 500–600 (500&lt;)</option>
-            <option value="acceptable">🟢 Acceptable — 600–700 (500&lt;)</option>
-            <option value="honnete">🟢 Honnête — 700–800 (500&lt;)</option>
-            <option value="moyenne">🟢 Moyenne — 800–900 (500&lt;)</option>
-            <option value="haute">🟢 Haute — 900–1000 (500&lt;)</option>
+            <option value="mediocre">🔴 Médiocre — Inférieur à 500 (vente uniquement)</option>
+            <option value="basique">🟢 Basique — 500–600 (Supérieur à 500)</option>
+            <option value="acceptable">🟢 Acceptable — 600–700 (Supérieur à 500)</option>
+            <option value="honnete">🟢 Honnête — 700–800 (Supérieur à 500)</option>
+            <option value="moyenne">🟢 Moyenne — 800–900 (Supérieur à 500)</option>
+            <option value="haute">🟢 Haute — 900–1000 (Supérieur à 500)</option>
           </select>
           <div id="obj-quality-badge" style="margin-top:5px;display:none;padding:4px 10px;font-size:10px;border-left:3px solid var(--border);font-family:var(--mono);"></div>
         </div>
@@ -1869,8 +1869,8 @@ function showLoginWall(){} // stub
           <label class="form-lbl">Type de craft</label>
           <select class="form-input" id="cmd-assigned" style="height:auto;padding:9px 11px;" onchange="filterCmdBlueprints()">
             <option value="">— Non défini —</option>
-            <option value="craft_vaisseau">🟢 500&lt; — Craft Vaisseau</option>
-            <option value="craft_fps">🟢 500&lt; — Craft FPS</option>
+            <option value="craft_vaisseau">🟢 Supérieur à 500 — Craft Vaisseau</option>
+            <option value="craft_fps">🟢 Supérieur à 500 — Craft FPS</option>
             <option value="vente">🔴 Vente directe</option>
             <option value="autre">○ Autre</option>
           </select>

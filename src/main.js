@@ -3936,7 +3936,7 @@ function openStockDetail(key) {
   const res  = entries[0].res;
   const QUALITY_LABELS = { mediocre:'💀 Médiocre', basique:'🔴 Basique', acceptable:'🟠 Acceptable', honnete:'🟡 Honnête', moyenne:'🟢 Moyenne', haute:'💎 Haute' };
   const QUALITY_COLORS = { mediocre:'#6b7280', basique:'var(--red)', acceptable:'var(--orange)', honnete:'#eab308', moyenne:'var(--green)', haute:'#a855f7' };
-  const BUCKET_LABELS  = { aucune:'⚪ Sans qualité', vente:'🔴 Vente (<500)', vaisseau:'🟢 Supérieur à 500', fps:'🟢 Supérieur à 500' };
+  const BUCKET_LABELS  = { aucune:'⚪ Sans qualité', vente:'🔴 Vente (Inférieur à 500)', vaisseau:'🟢 Supérieur à 500', fps:'🟢 Supérieur à 500' };
 
   document.getElementById('sdp-res-name').textContent = res;
 
