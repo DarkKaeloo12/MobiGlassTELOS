@@ -5038,7 +5038,7 @@ var _editBpId = null;
 var _bpIngredients = [];
 
 var BP_CAT_LABELS = {
-  vaisseau:'🚀 Vaisseau', fps:'🛡 FPS', composant:'🔧 Composant', autre:'○ Autre'
+  vaisseau:'🚀 Vaisseau', fps:'🛡 FPS', composant:'🔧 Composant', autre:'○ Autre', mes:'⭐ Mes Blueprints'
 };
 
 async function loadBlueprints() {
@@ -5083,7 +5083,12 @@ async function renderBlueprints() {
 
   const search = (document.getElementById('bp-search')?.value||'').toLowerCase();
   let data = [...BLUEPRINTS];
-  if (_bpFilter !== 'all') data = data.filter(b=>b.cat===_bpFilter);
+  if (_bpFilter === 'mes') {
+    const myBpIds = (window._playerBpCache && window._playerBpCache[SESSION.pid]) || [];
+    data = data.filter(b => myBpIds.includes(b.id));
+  } else if (_bpFilter !== 'all') {
+    data = data.filter(b => b.cat === _bpFilter);
+  }
   if (search) data = data.filter(b=>b.name.toLowerCase().includes(search)||(b.notes||'').toLowerCase().includes(search));
   data.sort((a,b)=>a.name.localeCompare(b.name,'fr'));
 
