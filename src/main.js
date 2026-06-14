@@ -5094,19 +5094,13 @@ function setBpFilter(f, btn) {
     if (corpoBtn) { corpoBtn.classList.remove('active'); corpoBtn.style.background='transparent'; }
   }
   if (_bpCorpoMode) {
+    // Garder "Blueprint Corpo" actif + mettre en surbrillance le filtre cat
     const corpoBtn = document.getElementById('btn-bp-corpo');
     if (corpoBtn) corpoBtn.classList.add('active');
   }
   if (_mesModeActif) _mesCatFilter = f;
   else if (f === 'mes') _mesCatFilter = 'all';
   else if (!_bpCorpoMode) _mesCatFilter = 'all';
-  renderBlueprints();
-  if (_bpCorpoMode) {
-    // En mode corpo : les filtres cat s'appliquent sans désactiver le modo corpo
-    // Garder le bouton corpo actif visuellement
-    const corpoBtn = document.getElementById('btn-bp-corpo');
-    if (corpoBtn) corpoBtn.classList.add('active');
-  }
   renderBlueprints();
 }
 
@@ -5117,12 +5111,14 @@ function toggleBpCorpo(btn) {
     btn.classList.add('active');
     btn.style.background = 'rgba(247,140,30,0.15)';
     _bpFilter = 'all';
+    _mesCatFilter = 'all';
   } else {
     btn.classList.remove('active');
     btn.style.background = 'transparent';
     const allBtn = document.querySelector('#panel-blueprints .filter-btn:first-of-type');
     if (allBtn) allBtn.classList.add('active');
     _bpFilter = 'all';
+    _mesCatFilter = 'all';
   }
   renderBlueprints();
 }
