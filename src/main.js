@@ -5057,7 +5057,7 @@ var _editBpId = null;
 var _bpIngredients = [];
 
 var BP_CAT_LABELS = {
-  vaisseau:'🚀 Vaisseau', fps:'🛡 FPS', composant:'🔧 Composant', autre:'○ Autre', mes:'⭐ Mes Blueprints'
+  fps:'🔫 Armes FPS', armor:'🛡 Armures FPS', vaisseau:'🚀 Armes Vaisseau', composant:'⚙ Composants Vaisseau', industriel:'🏭 Industriel', autre:'○ Autre', mes:'⭐ Mes Blueprints'
 };
 
 async function loadBlueprints() {
@@ -7144,10 +7144,14 @@ async function updateBadges(){
 /* ════════════════════════════════════════════════════════════
    LOGS (live push)
 ════════════════════════════════════════════════════════════ */
-function pushLog(type,tl,msg){
-  const n=new Date();
-  const ts=`${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
-  FULL_LOGS_DATA.unshift({ts, type, tl, msg});
+function pushLog(type, tl, msg) {
+  const n = new Date();
+  const ts = `${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
+  const entry = { ts, type, tl, msg, date: new Date().toISOString() };
+  FULL_LOGS_DATA.unshift(entry);
+  if (FULL_LOGS_DATA.length > 500) FULL_LOGS_DATA = FULL_LOGS_DATA.slice(0, 500);
+  // Persister
+  DB.set('telos-logs', FULL_LOGS_DATA).catch(()=>{});
   // Mise à jour temps réel
   renderSysLogs();
   if (document.getElementById('panel-logs').classList.contains('active')) renderFullLogs();
@@ -8403,6 +8407,7 @@ async function init(){
   // Clock
   tick(); setInterval(tick,1000);
   // Static renders
+  FULL_LOGS_DATA = (await DB.get('telos-logs')) || [];
   renderTopRes(); renderPrices(); renderActivity(); renderSysLogs(); renderFullLogs();
   renderCommerce();
   await loadMissions();
@@ -8411,7 +8416,7 @@ async function init(){
   await loadObjectifs();
   await loadCommandes();
   await loadBlueprints();
-  await refreshDatalist(); // Pré-remplir la datalist au démarrage
+  await refreshDatalist();
   await loadProfitHistory();
   drawChart(7);
   // Live prices
