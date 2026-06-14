@@ -3789,7 +3789,7 @@ function renderCommandes() {
       <div class="cmd-body">
         <div class="cmd-field"><div class="cmd-lbl">Commanditaire</div><div class="cmd-val">${esc(players.find(p=>p.id===c.client)?.name || c.client || '—')}</div></div>
         ${(()=>{
-          const craftLabels = { craft_vaisseau:'🟢 Supérieur à 500', craft_fps:'🟢 Supérieur à 500', autre:'○ Autre' };
+          const craftLabels = { fps:'🔫 Armes FPS', armor:'🛡 Armures FPS', vaisseau:'🚀 Armes Vaisseau', composant:'⚙ Composants Vaisseau', industriel:'🏭 Industriel', autre:'○ Autre' };
           const ct = c.craftType || c.assigned || '';
           return ct ? '<div class="cmd-field"><div class="cmd-lbl">Type craft</div><div class="cmd-val" style="color:var(--blue);">'+(craftLabels[ct]||ct)+'</div></div>' : '';
         })()}
@@ -4070,11 +4070,13 @@ function removeCmdResRow(btn) {
 
 // Mapping type de craft → cat blueprint
 const CRAFT_TYPE_TO_BP_CAT = {
-  craft_fps:      ['fps', 'craft_fps', 'FPS', ''],
-  craft_vaisseau: ['vaisseau', 'craft_vaisseau', 'Vaisseau', ''],
-  vente:          null, // pas de blueprint pour vente
-  autre:          null,
-  '':             null, // tout afficher
+  fps:       ['fps'],
+  armor:     ['armor'],
+  vaisseau:  ['vaisseau'],
+  composant: ['composant'],
+  industriel:['industriel'],
+  autre:     null,
+  '':        null,
 };
 
 function filterCmdBlueprints(selectedBpId) {
@@ -4084,26 +4086,17 @@ function filterCmdBlueprints(selectedBpId) {
 
   let bps = BLUEPRINTS || [];
 
-  // Filtrer selon le type de craft
-  if (craftType === 'craft_fps') {
-    bps = bps.filter(b => {
-      const cat = (b.cat||b.type||b.category||'').toLowerCase();
-      return cat === 'fps' || cat.includes('fps') || cat.includes('arme') || cat.includes('armor') || cat.includes('armure');
-    });
-  } else if (craftType === 'craft_vaisseau') {
-    bps = bps.filter(b => {
-      const cat = (b.cat||b.type||b.category||'').toLowerCase();
-      return cat === 'vaisseau' || cat.includes('vaisseau') || cat.includes('ship') || cat.includes('composant');
-    });
+  const cats = CRAFT_TYPE_TO_BP_CAT[craftType];
+  if (cats) {
+    bps = bps.filter(b => cats.includes((b.cat||'').toLowerCase()));
   }
-  // vente/autre/vide → tout afficher
 
   const current = selectedBpId || bpSel.value;
   bpSel.innerHTML = '<option value="">— Aucun blueprint —</option>'
     + bps.map(b => `<option value="${b.id}"${b.id===current?' selected':''}>${esc(b.name)}</option>`).join('');
   if (current && bps.find(b=>b.id===current)) bpSel.value = current;
 }
-
+ 
 function onCmdBlueprintChange() {
   const bpSel = document.getElementById('cmd-blueprint');
   if (!bpSel) return;
