@@ -793,6 +793,7 @@ function showLoginWall(){} // stub
           <button id="arm-tab-armor"     onclick="setArmTab('armor',this)"     style="padding:9px 16px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text-dim);font-family:var(--ui);font-size:11px;letter-spacing:1.5px;cursor:pointer;">🛡 ARMURES FPS</button>
           <button id="arm-tab-shipwep"   onclick="setArmTab('shipwep',this)"   style="padding:9px 16px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text-dim);font-family:var(--ui);font-size:11px;letter-spacing:1.5px;cursor:pointer;">🚀 ARMES VAISSEAU</button>
           <button id="arm-tab-shipcomp"  onclick="setArmTab('shipcomp',this)"  style="padding:9px 16px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text-dim);font-family:var(--ui);font-size:11px;letter-spacing:1.5px;cursor:pointer;">⚙ COMPOSANTS</button>
+          <button id="arm-tab-industriel" onclick="setArmTab('industriel',this)" style="padding:9px 16px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text-dim);font-family:var(--ui);font-size:11px;letter-spacing:1.5px;cursor:pointer;">🏭 INDUSTRIEL</button>
         </div>
         
         <!-- Toolbar recherche + filtre type -->
@@ -834,6 +835,7 @@ function showLoginWall(){} // stub
           <button type="button" class="cat-sel-btn" data-acet="armor"    onclick="selectArmCatEdit('armor')"    style="flex:1;padding:6px 10px;font-size:11px;">🛡 Armures FPS</button>
           <button type="button" class="cat-sel-btn" data-acet="shipwep"  onclick="selectArmCatEdit('shipwep')"  style="flex:1;padding:6px 10px;font-size:11px;">🚀 Armes Vaisseau</button>
           <button type="button" class="cat-sel-btn" data-acet="shipcomp" onclick="selectArmCatEdit('shipcomp')" style="flex:1;padding:6px 10px;font-size:11px;">⚙ Composants</button>
+          <button type="button" class="cat-sel-btn" data-acet="industriel" onclick="selectArmCatEdit('industriel')" style="flex:1;padding:6px 10px;font-size:11px;">🏭 Industriel</button>
         </div>
         <input type="hidden" id="acet-tab">
       </div>
@@ -1159,9 +1161,11 @@ function showLoginWall(){} // stub
             <input type="text" id="bp-search" placeholder="Rechercher un blueprint..." oninput="renderBlueprints()">
           </div>
           <button class="filter-btn active" onclick="setBpFilter('all',this)">Tous</button>
-          <button class="filter-btn" onclick="setBpFilter('vaisseau',this)">🚀 Vaisseau</button>
-          <button class="filter-btn" onclick="setBpFilter('fps',this)">🛡 FPS</button>
-          <button class="filter-btn" onclick="setBpFilter('composant',this)">🔧 Composant</button>
+          <button class="filter-btn" onclick="setBpFilter('fps',this)">🔫 Armes FPS</button>
+          <button class="filter-btn" onclick="setBpFilter('armor',this)">🛡 Armures FPS</button>
+          <button class="filter-btn" onclick="setBpFilter('industriel',this)">🏭 Industriel</button>
+          <button class="filter-btn" onclick="setBpFilter('vaisseau',this)">🚀 Armes Vaisseau</button>
+          <button class="filter-btn" onclick="setBpFilter('composant',this)">⚙ Composants Vaisseau</button>
           <button class="filter-btn" onclick="setBpFilter('mes',this)">⭐ Mes Blueprints</button>
           <button class="filter-btn" id="btn-bp-corpo" onclick="toggleBpCorpo(this)" style="border-color:rgba(247,140,30,0.4);color:var(--orange);">🏢 Blueprint Corpo</button>
           <span id="bp-count" style="margin-left:auto;font-size:11px;color:var(--text-dim);font-family:var(--mono);"></span>
@@ -1977,9 +1981,11 @@ function showLoginWall(){} // stub
         <div class="form-field">
           <label class="form-lbl">Catégorie <span class="req">*</span></label>
           <select class="form-input" id="bp-cat" style="height:auto;padding:9px 11px;">
-            <option value="vaisseau">🚀 Vaisseau</option>
-            <option value="fps">🛡 FPS</option>
-            <option value="composant">🔧 Composant</option>
+            <option value="fps">🔫 Armes FPS</option>
+            <option value="armor">🛡 Armures FPS</option>
+            <option value="vaisseau">🚀 Armes Vaisseau</option>
+            <option value="composant">⚙ Composants Vaisseau</option>
+            <option value="industriel">🏭 Industriel</option>
             <option value="autre">○ Autre</option>
           </select>
         </div>

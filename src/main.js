@@ -2920,6 +2920,7 @@ function renderArmurie() {
     armor:    ['Nom','Type','Tier','Résistance','Bonus','Lieu','Prix aUEC'],
     shipwep:  ['Nom','Taille','Type','DPS','Énergie','Portée (m)','Lieu','Prix aUEC'],
     shipcomp: ['Nom','Catégorie','Taille','Qualité','Stats 1','Stats 2','Lieu','Prix aUEC'],
+    industriel: ['Nom','Type','Capacité','Rendement','Portée','Stats','Lieu','Prix aUEC'],
   };
   if (thead) thead.innerHTML = '<tr><th style="width:30px;"></th>' + (HEADERS[_armTab]||[]).map(h => `<th>${h}</th>`).join('') + '</tr>';
 
@@ -2933,7 +2934,17 @@ function renderArmurie() {
   const _canEdit = canManageRoles();
   tbody.innerHTML = base.map(item => {
     let cells = '';
-    if (_armTab === 'fps') {
+    if (_armTab === 'industriel') {
+      cells = `
+        <td style="font-weight:700;color:var(--text-bright);">🏭 ${esc(item.name)}</td>
+        <td><span style="font-size:10px;padding:1px 6px;border:1px solid var(--border);color:var(--text-dim);">${esc(item.type||'—')}</span></td>
+        <td style="font-family:var(--mono);color:var(--orange);">${esc(item.capacité||'—')}</td>
+        <td style="font-family:var(--mono);color:var(--red);">${esc(item.rendement||'—')}</td>
+        <td style="font-family:var(--mono);">${esc(item.portée||'—')}</td>
+        <td style="font-size:11px;color:var(--blue);">${esc(item.bonus||'—')}</td>
+        <td style="font-size:11px;color:var(--text-dim);">${esc(item.loc||'—')}</td>
+        <td style="font-family:var(--mono);color:var(--green);">${item.prix ? fmt(item.prix)+' aUEC' : '—'}</td>`;
+    } else if (_armTab === 'fps') {
       cells = `
         <td style="font-weight:700;color:var(--text-bright);">⚔ ${esc(item.name)}</td>
         <td><span style="font-size:10px;padding:1px 6px;border:1px solid var(--border);color:var(--text-dim);">${esc(item.type||'—')}</span></td>
@@ -3012,7 +3023,7 @@ function openArmCatEdit(rawId) {
   // Trouver dans SC_DB si besoin (pour pré-remplir les champs)
   var scdbItem = null;
   if (isScdb) {
-    ['fps','armor','shipwep','shipcomp'].forEach(function(tab) {
+    ['fps','armor','shipwep','shipcomp','industriel'].forEach(function(tab) {
       var found = (SC_DB[tab]||[]).find(function(x){ return ('scdb_'+x.name)===rawId || x.id===rawId; });
       if (found) scdbItem = Object.assign({}, found, {tab: tab});
     });
