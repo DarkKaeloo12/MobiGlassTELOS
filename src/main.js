@@ -3825,12 +3825,15 @@ function openAddCommande(editId) {
   _editCmdId = editId;
   const c = editId ? COMMANDES.find(x=>x.id===editId) : null;
 
-  // Populate commanditaire select (partenaires)
-  const clientSel = document.getElementById('cmd-client');
-  if (clientSel) {
-    clientSel.innerHTML = '<option value="">— Sélectionner —</option>'
-      + players.map(p=>`<option value="${p.id}"${c?.client===p.id?' selected':''}>${esc(p.name)}</option>`).join('');
-  }
+  // Commanditaire — forcé sur l'utilisateur connecté
+  const clientInput   = document.getElementById('cmd-client');
+  const clientDisplay = document.getElementById('cmd-client-display');
+  const forcedId   = SESSION?.pid || '';
+  const forcedName = players.find(p => p.id === forcedId)?.name || '—';
+  const clientId   = (editId && canManageRoles() && c?.client) ? c.client : forcedId;
+  const clientName = players.find(p => p.id === clientId)?.name || forcedName;
+  if (clientInput)   clientInput.value        = clientId;
+  if (clientDisplay) clientDisplay.textContent = clientName;
 
   // Restaurer le type de craft si édition
   const sel = document.getElementById('cmd-assigned');

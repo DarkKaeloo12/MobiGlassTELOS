@@ -1857,13 +1857,12 @@ function showLoginWall(){} // stub
 
       <div class="grid2">
 
-        <!-- Commanditaire — select partenaires -->
-        <div class="form-field">
-          <label class="form-lbl">Commanditaire <span class="req">*</span></label>
-          <select class="form-input" id="cmd-client" style="height:auto;padding:9px 11px;">
-            <option value="">— Sélectionner —</option>
-          </select>
-        </div>
+        <!-- Commanditaire — auto depuis session -->
+      <div class="form-field">
+        <label class="form-lbl">Commanditaire <span class="req">*</span></label>
+        <input type="hidden" id="cmd-client">
+        <div id="cmd-client-display" class="form-input" style="height:auto;padding:9px 11px;opacity:0.7;cursor:default;display:flex;align-items:center;font-family:var(--mono);font-size:12px;">—</div>
+      </div>
 
         <!-- Type de craft -->
         <div class="form-field">
