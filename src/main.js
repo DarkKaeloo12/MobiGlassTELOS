@@ -100,7 +100,7 @@ function canManageRoles() {
 // Peut éditer une commande selon son statut et le rôle
 function canEditCommande(c) {
   if (!SESSION || !c) return false;
-  if (canManageRoles()) return true;
+  if (canManageRoles() || hasDroit('edit_commande')) return true;
   const isOwner = (c.createdBy && c.createdBy === SESSION.pid) || (c.client && c.client === SESSION.pid);
   if (c.status === 'attente') return isOwner;
   return false;
@@ -3640,6 +3640,7 @@ async function updateIngredient(objId, ingIdx, val) {
 function editObjectif(id) { openAddObjectif(id); }
 
 async function deleteObjectif(id) {
+  if (!canManageRoles() && !hasDroit('delete_objectif')) { toast('Accès refusé','','error'); return; }
   const o = OBJECTIFS.find(x => x.id === id);
   if (!o || !confirm('Supprimer "' + o.title + '" ?')) return;
   OBJECTIFS = OBJECTIFS.filter(x => x.id !== id);
@@ -3781,7 +3782,7 @@ function renderCommandes() {
         </div>
         <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:flex-start;">
           <span class="cmd-status cmd-status-${c.status}">${CMD_STATUS_LABELS[c.status]||c.status}</span>
-          ${c.branche ? '<span style="font-size:9px;letter-spacing:1px;padding:2px 7px;border:1px solid var(--orange);color:var(--orange);background:rgba(247,140,30,0.08);">🔗 BRANCHÉE</span>' : ''}
+          ${c.branche ? '<span style="font-size:9px;letter-spacing:1px;padding:2px 7px;border:1px solid var(--orange);color:var(--orange);background:rgba(247,140,30,0.08);">🔗 COMMANDE DE BRANCHE</span>' : ''}
           ${(()=>{ const labels={haute:'🟠 HAUTE',urgente:'🔴 URGENTE'}; return labels[c.priority]?`<span style="font-size:9px;letter-spacing:1px;padding:2px 7px;border:1px solid ${c.priority==='urgente'?'var(--red)':'#f97316'};color:${c.priority==='urgente'?'var(--red)':'#f97316'};background:${c.priority==='urgente'?'rgba(255,68,68,0.08)':'rgba(249,115,22,0.08)'};">${labels[c.priority]}</span>`:''; })()}
         </div>
       </div>
@@ -4521,6 +4522,7 @@ async function cancelCommande(id) {
 }
 
 async function deleteCommande(id) {
+  if (!canManageRoles() && !hasDroit('delete_commande')) { toast('Accès refusé','','error'); return; }
   const comm = COMMANDES.find(x=>x.id===id);
   if (!comm) return;
   if (!confirm('Supprimer définitivement "'+comm.title+'" ?')) return;
@@ -5208,7 +5210,7 @@ async function renderBlueprints() {
         const isOwner=myBps.includes(b.id);
         let td='<td style="min-width:150px;">';
         if(SESSION) td+='<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:'+(isOwner?'var(--green)':'var(--text-dim)')+';margin-bottom:5px;"><input type="checkbox" '+(isOwner?'checked':'')+' data-bpid="'+b.id.replace(/"/g,'')+'" style="width:14px;height:14px;accent-color:var(--orange);cursor:pointer;" class="bp-own-cb"><span>'+(isOwner?'✓ Je possède':'○ Je possède')+'</span></label>';
-        if(canManageRoles()) td+='<button data-action="bp-edit" data-id="'+b.id.replace(/"/g,'')+'" style="padding:3px 10px;border:1px solid rgba(247,140,30,0.4);color:var(--orange);background:transparent;cursor:pointer;font-size:10px;font-family:var(--ui);letter-spacing:1px;margin-right:4px;">✏ Éditer</button>';
+        if(canManageRoles() || hasDroit('edit_blueprint')) td+='<button data-action="bp-edit" data-id="'+b.id.replace(/"/g,'')+'" style="padding:3px 10px;border:1px solid rgba(247,140,30,0.4);color:var(--orange);background:transparent;cursor:pointer;font-size:10px;font-family:var(--ui);letter-spacing:1px;margin-right:4px;">✏ Éditer</button>';
         if(canManageRoles()) td+='<button data-delbp="'+b.id.replace(/"/g,'')+'" style="padding:3px 10px;border:1px solid rgba(255,68,68,0.4);color:var(--red);background:transparent;cursor:pointer;font-size:10px;font-family:var(--ui);letter-spacing:1px;">✕ Supprimer</button>';
         td+='</td>';
         return td;
@@ -6340,7 +6342,12 @@ var DROITS_DEFS = [
   { id:'ressources',    label:'🔬 Data Ressource',         desc:'Catalogue ressources (admin/gest.)' },
   { id:'armurie',       label:'⚔ Data Armurie',           desc:'Catalogue armement (admin/gest.)' },
   { id:'edit_stock',    label:'✏ Modifier stock',          desc:'Ajouter/modifier son propre stock' },
-  { id:'add_commande',  label:'+ Créer commande',          desc:'Créer une commande' },
+  { id:'add_commande',    label:'+ Créer commande',          desc:'Créer une commande' },
+  { id:'edit_commande',   label:'✏ Modifier commande',       desc:'Modifier une commande existante' },
+  { id:'delete_commande', label:'🗑 Supprimer commande',      desc:'Supprimer une commande' },
+  { id:'edit_objectif',   label:'✏ Modifier objectif',       desc:'Modifier un objectif existant' },
+  { id:'delete_objectif', label:'🗑 Supprimer objectif',      desc:'Supprimer un objectif' },
+  { id:'edit_blueprint',  label:'✏ Modifier blueprint',      desc:'Modifier un blueprint existant' },
   { id:'use_priority',  label:'🔴 Priorité commande',      desc:'Choisir la priorité d\'une commande' },
   { id:'use_branche',   label:'🔗 Commande de Branche',      desc:'Marquer une commande comme branchée' },
   { id:'add_objectif',  label:'+ Créer objectif',          desc:'Créer un objectif' },
@@ -7339,7 +7346,7 @@ function renderRolesNameList() {
       : 'border:1px solid var(--border);color:var(--text-dim);background:transparent;';
     const toggleIcon = inscrit ? '📋' : '🚫';
     return `
-    <div style="display:grid;grid-template-columns:1fr 38px auto auto;gap:6px;align-items:center;">
+    <div style="display:grid;grid-template-columns:1fr 38px auto auto auto auto;gap:6px;align-items:center;">
       <input class="form-input" type="text" value="${r}" data-role-idx="${i}"
         style="padding:6px 9px;font-size:12px;border-left:3px solid ${col};"
         oninput="ROLES[${i}]=this.value; syncDroitsRoleKey(${i}, this.value);">
@@ -7350,6 +7357,10 @@ function renderRolesNameList() {
           oninput="setRoleColor(${i}, this.value)"
           onchange="setRoleColor(${i}, this.value)">
       </label>
+      <button onclick="moveRole(${i},-1)" ${i===0?'disabled':''} title="Monter"
+        style="padding:2px 7px;border:1px solid var(--border);color:var(--text-dim);background:transparent;cursor:pointer;font-size:12px;${i===0?'opacity:0.3;':''}" >↑</button>
+      <button onclick="moveRole(${i},1)" ${i===ROLES.length-1?'disabled':''} title="Descendre"
+        style="padding:2px 7px;border:1px solid var(--border);color:var(--text-dim);background:transparent;cursor:pointer;font-size:12px;${i===ROLES.length-1?'opacity:0.3;':''}" >↓</button>
       <button onclick="toggleRoleInscription('${r}')" title="${toggleTitle}"
         style="padding:2px 8px;cursor:pointer;font-family:var(--ui);font-size:11px;${toggleStyle}" >
         ${toggleIcon}
@@ -7423,6 +7434,14 @@ function removeRole(idx) {
   populateRegRoles && populateRegRoles();
 }
 
+function moveRole(idx, dir) {
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= ROLES.length) return;
+  [ROLES[idx], ROLES[newIdx]] = [ROLES[newIdx], ROLES[idx]];
+  renderRolesNameList();
+  renderDroitsTable();
+}
+
 function renderDroitsTable() {
   const thead = document.getElementById('droits-thead');
   const tbody = document.getElementById('droits-tbody');
@@ -7471,9 +7490,8 @@ function renderDroitsTable() {
 function setDroit(role, droit, val) {
   if (!ROLES_CONFIG[role]) ROLES_CONFIG[role] = {};
   ROLES_CONFIG[role][droit] = val ? 1 : 0;
-  // Sauvegarde immédiate + mise à jour de la nav
   saveRolesConfig()
-    .then(() => { updateNavRessources(); updateNavBanque && updateNavBanque(); })
+    .then(() => { updateAllNav(); })
     .catch(e => console.warn('setDroit save error:', e));
 }
 
