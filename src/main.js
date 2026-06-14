@@ -33,6 +33,7 @@ document.addEventListener('click', function(e) {
     case 'miss-delete':   deleteMission(id); break;
     case 'arm-select':    selectArmPlayer(id); break;
     case 'arm-edit':      openAddArmItem(id); break;
+    case 'bp-edit':       editBlueprint(id); break;
     case 'arm-cat-edit':  openArmCatEdit(id); break;
     case 'arm-del':       deleteArmItem(id, event?.target?.closest('[data-name]')?.dataset?.name||id); break;
     case 'bank-delete':  deleteBankTransaction(id); break;
@@ -5088,8 +5089,7 @@ function setBpFilter(f, btn) {
   } else {
     if (btn) btn.classList.add('active');
   }
-  if (_bpFilter !== 'mes' && _bpFilter !== 'corpo') {
-    _bpCorpoMode = false;
+  if (!_bpCorpoMode && _bpFilter !== 'mes') {
     const corpoBtn = document.getElementById('btn-bp-corpo');
     if (corpoBtn) { corpoBtn.classList.remove('active'); corpoBtn.style.background='transparent'; }
   }
@@ -5204,6 +5204,7 @@ async function renderBlueprints() {
         const isOwner=myBps.includes(b.id);
         let td='<td style="min-width:150px;">';
         if(SESSION) td+='<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:'+(isOwner?'var(--green)':'var(--text-dim)')+';margin-bottom:5px;"><input type="checkbox" '+(isOwner?'checked':'')+' data-bpid="'+b.id.replace(/"/g,'')+'" style="width:14px;height:14px;accent-color:var(--orange);cursor:pointer;" class="bp-own-cb"><span>'+(isOwner?'✓ Je possède':'○ Je possède')+'</span></label>';
+        if(canManageRoles()) td+='<button data-action="bp-edit" data-id="'+b.id.replace(/"/g,'')+'" style="padding:3px 10px;border:1px solid rgba(247,140,30,0.4);color:var(--orange);background:transparent;cursor:pointer;font-size:10px;font-family:var(--ui);letter-spacing:1px;margin-right:4px;">✏ Éditer</button>';
         if(canManageRoles()) td+='<button data-delbp="'+b.id.replace(/"/g,'')+'" style="padding:3px 10px;border:1px solid rgba(255,68,68,0.4);color:var(--red);background:transparent;cursor:pointer;font-size:10px;font-family:var(--ui);letter-spacing:1px;">✕ Supprimer</button>';
         td+='</td>';
         return td;
@@ -5416,12 +5417,11 @@ async function syncBlueprintsFromWiki() {
 
       const existing = BLUEPRINTS.find(x => x.name.toLowerCase() === name.toLowerCase());
       if (existing) {
-        existing.ingredients = ingredients;
-        existing.level       = size || existing.level;
-        existing.cat         = existing.cat || cat;
-        existing.craftTime   = craftTime;
-        existing.wikiUuid    = bp.uuid;
-        existing.updatedAt   = now;
+        if (!existing.ingredients || !existing.ingredients.length) existing.ingredients = ingredients;
+        if (!existing.level)     existing.level     = size;
+        if (!existing.craftTime) existing.craftTime = craftTime;
+        if (!existing.wikiUuid)  existing.wikiUuid  = bp.uuid;
+        existing.fromWiki = true;
         updated++;
       } else {
         BLUEPRINTS.push({
