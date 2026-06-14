@@ -5855,7 +5855,7 @@ function qualityBucket(s) {
   if (!q || q === '') return 'aucune';  // pas de qualité = colonne dédiée
   const scores = { mediocre:250, basique:550, acceptable:650, honnete:750, moyenne:850, haute:950 };
   const score = scores[q] || 0;
-  if (score Inférieur à 500)  return 'vente';    // Inférieur à 500 : vente uniquement
+  if (score < 500)  return 'vente';    // Inférieur à 500 : vente uniquement
   if (score < 800)  return 'vaisseau'; // 500–800 : craft vaisseau
   return 'fps';                        // 800–1000 : craft FPS
 }
@@ -6558,7 +6558,7 @@ function syncQualityFromExact(val) {
   const sel = document.getElementById('ps-quality');
   if (!sel) return;
   if (!val || isNaN(n)) { sel.value = ''; }
-  else if (n Inférieur à 500)  sel.value = 'mediocre';
+  else if (n < 500)  sel.value = 'mediocre';
   else if (n < 600)  sel.value = 'basique';
   else if (n < 700)  sel.value = 'acceptable';
   else if (n < 800)  sel.value = 'honnete';
@@ -8109,7 +8109,7 @@ function syncArmQualityFromExact(val) {
   const sel = document.getElementById('arm-quality');
   if (!sel) return;
   if (!val || isNaN(n)) sel.value = '';
-  else if (n Inférieur à 500) sel.value = 'mediocre';
+  else if (n < 500) sel.value = 'mediocre';
   else if (n < 600) sel.value = 'basique';
   else if (n < 700) sel.value = 'acceptable';
   else if (n < 800) sel.value = 'honnete';
