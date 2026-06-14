@@ -5046,6 +5046,7 @@ async function autoSyncUEX() {
 ════════════════════════════════════════════════════════════ */
 var BLUEPRINTS = [];
 var _bpFilter = 'all';
+var _bpCorpoMode = false;
 var _editBpId = null;
 var _bpIngredients = [];
 
@@ -5077,6 +5078,28 @@ function setBpFilter(f, btn) {
   _bpFilter = f;
   document.querySelectorAll('#panel-blueprints .filter-btn').forEach(b=>b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+  if (f !== 'corpo') {
+    _bpCorpoMode = false;
+    const corpoBtn = document.getElementById('btn-bp-corpo');
+    if (corpoBtn) { corpoBtn.classList.remove('active'); corpoBtn.style.background = 'transparent'; }
+  }
+  renderBlueprints();
+}
+
+function toggleBpCorpo(btn) {
+  _bpCorpoMode = !_bpCorpoMode;
+  if (_bpCorpoMode) {
+    document.querySelectorAll('#panel-blueprints .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    btn.style.background = 'rgba(247,140,30,0.15)';
+    _bpFilter = 'all';
+  } else {
+    btn.classList.remove('active');
+    btn.style.background = 'transparent';
+    const allBtn = document.querySelector('#panel-blueprints .filter-btn:first-of-type');
+    if (allBtn) allBtn.classList.add('active');
+    _bpFilter = 'all';
+  }
   renderBlueprints();
 }
 
@@ -5095,7 +5118,15 @@ async function renderBlueprints() {
 
   const search = (document.getElementById('bp-search')?.value||'').toLowerCase();
   let data = [...BLUEPRINTS];
-  if (_bpFilter === 'mes') {
+  if (_bpCorpoMode) {
+    const cache = window._playerBpCache || {};
+    const corpoBpIds = new Set();
+    Object.values(cache).forEach(ids => (ids||[]).forEach(id => corpoBpIds.add(id)));
+    data = data.filter(b => corpoBpIds.has(b.id));
+    if (_bpFilter !== 'all' && _bpFilter !== 'mes') {
+      data = data.filter(b => b.cat === _bpFilter);
+    }
+  } else if (_bpFilter === 'mes') {
     const myBpIds = (window._playerBpCache && window._playerBpCache[SESSION.pid]) || [];
     data = data.filter(b => myBpIds.includes(b.id));
   } else if (_bpFilter !== 'all') {
@@ -5118,10 +5149,19 @@ async function renderBlueprints() {
       +esc(i.name)+' x'+i.qty+'</span>'
     ).join('');
 
-    const owners = (b.owners||[]).map(oid => {
-      const p = players.find(x=>x.id===oid);
-      return p ? '<span style="font-size:10px;color:var(--blue);">'+esc(p.name)+'</span>' : '';
-    }).filter(Boolean).join(', ');
+    let owners;
+    if (_bpCorpoMode) {
+      const cache = window._playerBpCache || {};
+      owners = players
+        .filter(p => (cache[p.id]||[]).includes(b.id))
+        .map(p => '<span style="font-size:10px;padding:1px 6px;border:1px solid rgba(89,208,255,0.3);color:var(--blue);margin:1px;display:inline-block;">'+esc(p.name)+'</span>')
+        .join('');
+    } else {
+      owners = (b.owners||[]).map(oid => {
+        const p = players.find(x=>x.id===oid);
+        return p ? '<span style="font-size:10px;color:var(--blue);">'+esc(p.name)+'</span>' : '';
+      }).filter(Boolean).join(', ');
+    }
 
     return '<tr>'
       +'<td style="font-weight:700;color:var(--text-bright);">📐 '+esc(b.name)+(b.fromWiki?'<span style="font-size:8px;margin-left:5px;padding:1px 5px;border:1px solid rgba(89,208,255,0.4);color:var(--blue);letter-spacing:1px;">WIKI</span>':'')+'</td>'

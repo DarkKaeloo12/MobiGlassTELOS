@@ -344,7 +344,7 @@ function showLoginWall(){} // stub
               <th onclick="sortStocks('player')">Partenaire ↕</th>
               <th title="Pas de qualité assignée" style="color:var(--text-dim);cursor:default;white-space:nowrap;" onclick="sortStocks('qty_aucune')">⚪ Qté ↕<div style="font-size:8px;opacity:.7;">sans qual.</div></th>
               <th title="Qualité Inférieur à 500 — vente uniquement" style="color:var(--orange);cursor:default;white-space:nowrap;" onclick="sortStocks('qty_vente')">🔴 Inférieur à 500 ↕</th>
-              <th title="Qualité Supérieur à 500 — Craft (Vaisseau &amp; FPS)" style="color:var(--green);cursor:default;white-space:nowrap;" onclick="sortStocks('qty_craft500')">🟢 Supérieur à 500 ↕<div style="font-size:8px;opacity:.7;">Supérieur à 500</div></th>
+              <th title="Qualité Supérieur à 500 — Craft (Vaisseau &amp; FPS)" style="color:var(--green);cursor:default;white-space:nowrap;" onclick="sortStocks('qty_craft500')">🟢 Supérieur à 500 ↕</th>
               <th onclick="sortStocks('buy')">Prix achat ↕</th>
               <th onclick="sortStocks('sell')">Prix vente ↕</th>
               <th onclick="sortStocks('margin')">Marge ↕</th>
@@ -554,7 +554,7 @@ function showLoginWall(){} // stub
                       <th>Ressource</th><th>Catégorie</th>
                       <th title="Pas de qualité assignée" style="color:var(--text-dim);white-space:nowrap;">⚪ Qté<div style="font-size:8px;opacity:.7;">sans qual.</div></th>
                       <th title="Qualité Inférieur à 500 — vente uniquement" style="color:var(--orange);white-space:nowrap;">🔴 Inférieur à 500</th>
-                      <th title="Qualité Supérieur à 500 — Craft (Vaisseau &amp; FPS)" style="color:var(--green);white-space:nowrap;">🟢 Supérieur à 500<div style="font-size:8px;opacity:.7;">Supérieur à 500</div></th>
+                      <th title="Qualité Supérieur à 500 — Craft (Vaisseau &amp; FPS)" style="color:var(--green);white-space:nowrap;">🟢 Supérieur à 500</th>
                       <th>Prix achat</th><th>Prix vente</th><th>Marge</th>
                       <th>Val. achat</th><th>Val. vente</th><th>Profit</th>
                       <th>📍 Localisation</th><th>Date</th><th>Action</th>
@@ -589,7 +589,7 @@ function showLoginWall(){} // stub
                       <th>Ressource</th><th>Catégorie</th>
                       <th title="Pas de qualité assignée" style="color:var(--text-dim);white-space:nowrap;">⚪ Qté<div style="font-size:8px;opacity:.7;">sans qual.</div></th>
                       <th title="Qualité Inférieur à 500 — vente uniquement" style="color:var(--orange);white-space:nowrap;">🔴 Inférieur à 500</th>
-                      <th title="Qualité Supérieur à 500 — Craft (Vaisseau &amp; FPS)" style="color:var(--green);white-space:nowrap;">🟢 Supérieur à 500<div style="font-size:8px;opacity:.7;">Supérieur à 500</div></th>
+                      <th title="Qualité Supérieur à 500 — Craft (Vaisseau &amp; FPS)" style="color:var(--green);white-space:nowrap;">🟢 Supérieur à 500</th>
                       <th>Prix achat</th><th>Prix vente</th><th>Marge</th>
                       <th>Val. achat</th><th>Val. vente</th><th>Profit</th>
                       <th>📍 Localisation</th><th>Date</th><th>Action</th>
@@ -1163,6 +1163,7 @@ function showLoginWall(){} // stub
           <button class="filter-btn" onclick="setBpFilter('fps',this)">🛡 FPS</button>
           <button class="filter-btn" onclick="setBpFilter('composant',this)">🔧 Composant</button>
           <button class="filter-btn" onclick="setBpFilter('mes',this)">⭐ Mes Blueprints</button>
+          <button class="filter-btn" id="btn-bp-corpo" onclick="toggleBpCorpo(this)" style="border-color:rgba(247,140,30,0.4);color:var(--orange);">🏢 Blueprint Corpo</button>
           <span id="bp-count" style="margin-left:auto;font-size:11px;color:var(--text-dim);font-family:var(--mono);"></span>
           <button onclick="syncBlueprintsFromWiki()" id="btn-bp-sync" style="padding:3px 12px;border:1px solid rgba(89,208,255,0.4);background:transparent;color:var(--blue);font-family:var(--ui);font-size:10px;letter-spacing:1px;cursor:pointer;transition:all 0.2s;white-space:nowrap;" title="Synchroniser avec star-citizen.wiki">↻ SYNC WIKI</button>
           <span id="bp-sync-status" style="font-size:9px;color:var(--text-dim);font-family:var(--mono);"></span>
