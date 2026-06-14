@@ -2184,6 +2184,17 @@ function renderCommerce(){
 async function renderPartners(){
   const search = (document.getElementById('partner-search')||{}).value||'';
 
+  // Charger le cache blueprints si pas encore fait
+  if (!window._playerBpCache) window._playerBpCache = {};
+  await Promise.all(players.map(async p => {
+    if (!window._playerBpCache[p.id]) {
+      try {
+        const bps = await DB.get('player-blueprints-' + p.id);
+        if (bps) window._playerBpCache[p.id] = bps;
+      } catch(e) {}
+    }
+  }));
+
   // Charger tous les joueurs + leurs stocks
   const data = await Promise.all(players.map(async p => {
     const stocks = (await DB.get('uex-stocks-'+p.id))||[];
@@ -3340,8 +3351,8 @@ function onObjQualityChange(val) {
   if (!val) { badge.style.display = 'none'; return; }
   const meta = QUALITY_META[val];
   if (!meta || !meta.label) { badge.style.display = 'none'; return; }
-  const bucketMap = { mediocre:'🔴 Vente uniquement', basique:'🟢 500<', acceptable:'🟢 500<',
-    honnete:'🟢 500<', moyenne:'🟢 500<', haute:'🟢 500<' };
+  const bucketMap = { mediocre:'🔴 Vente uniquement', basique:'🟢 Supérieur à 500', acceptable:'🟢 Supérieur à 500',
+    honnete:'🟢 Supérieur à 500', moyenne:'🟢 Supérieur à 500', haute:'🟢 Supérieur à 500' };
   badge.style.display = 'block';
   badge.style.borderLeftColor = meta.color;
   badge.style.color = meta.color;
@@ -3766,7 +3777,7 @@ function renderCommandes() {
       <div class="cmd-body">
         <div class="cmd-field"><div class="cmd-lbl">Commanditaire</div><div class="cmd-val">${esc(players.find(p=>p.id===c.client)?.name || c.client || '—')}</div></div>
         ${(()=>{
-          const craftLabels = { craft_vaisseau:'🟢 500<', craft_fps:'🟢 500<', vente:'🔴 Vente', autre:'○ Autre' };
+          const craftLabels = { craft_vaisseau:'🟢 Supérieur à 500', craft_fps:'🟢 Supérieur à 500', autre:'○ Autre' };
           const ct = c.craftType || c.assigned || '';
           return ct ? '<div class="cmd-field"><div class="cmd-lbl">Type craft</div><div class="cmd-val" style="color:var(--blue);">'+(craftLabels[ct]||ct)+'</div></div>' : '';
         })()}
@@ -3925,7 +3936,7 @@ function openStockDetail(key) {
   const res  = entries[0].res;
   const QUALITY_LABELS = { mediocre:'💀 Médiocre', basique:'🔴 Basique', acceptable:'🟠 Acceptable', honnete:'🟡 Honnête', moyenne:'🟢 Moyenne', haute:'💎 Haute' };
   const QUALITY_COLORS = { mediocre:'#6b7280', basique:'var(--red)', acceptable:'var(--orange)', honnete:'#eab308', moyenne:'var(--green)', haute:'#a855f7' };
-  const BUCKET_LABELS  = { aucune:'⚪ Sans qualité', vente:'🔴 Vente (<500)', vaisseau:'🟢 500<', fps:'🟢 500<' };
+  const BUCKET_LABELS  = { aucune:'⚪ Sans qualité', vente:'🔴 Vente (<500)', vaisseau:'🟢 Supérieur à 500', fps:'🟢 Supérieur à 500' };
 
   document.getElementById('sdp-res-name').textContent = res;
 
@@ -4213,7 +4224,7 @@ async function saveCommande() {
 // collecte/autre → uniquement stock 'aucune' (sans qualité)
 // Les ressources 'vente' (<500) ne comptent JAMAIS
 function objStockBucket(obj) {
-  // Tous les objectifs comptabilisent TOUT le stock ≥500 (vaisseau + fps),
+  // Tous les objectifs comptabilisent TOUT le stock Supérieur à 500 (vaisseau + fps),
   // sans exception, quel que soit le craftType ou blueprint associé.
   // Seul le stock 'vente' (<500) et 'aucune' (non classé) sont exclus.
   return ['vaisseau', 'fps'];
@@ -5002,7 +5013,7 @@ async function syncFromUEXLocal() {
   await DB.set('telos-last-uex-sync', String(Date.now()));
   await refreshDatalist();
   populateResSelect();
-  
+
   // Forcer l'affichage du panel ressources et re-render
   const _rPanel = document.getElementById('panel-ressources');
   const _rNav   = document.getElementById('nav-ressources');
@@ -5771,7 +5782,7 @@ function computeTierSummary(stocks) {
   // stocks = [{res, qty, price, sellprice, ...}]
   const summary = {
     total:      { qty: 0, valAchat: 0, valVente: 0 },
-    vente:      { qty: 0, valAchat: 0, valVente: 0 },   // < 500 aUEC
+    vente:      { qty: 0, valAchat: 0, valVente: 0 },   // Inférieur à 500 aUEC
     craft_ship: { qty: 0, valAchat: 0, valVente: 0 },   // 500–600
     craft_fps:  { qty: 0, valAchat: 0, valVente: 0 },   // > 600
     unknown:    { qty: 0, valAchat: 0, valVente: 0 },   // non référencé UEX
@@ -5813,17 +5824,17 @@ function renderTierBar(summary, containerId) {
       </div>
 
       <!-- Vente directe -->
-      <div style="padding:7px 14px;border-right:1px solid var(--border);min-width:130px;flex-shrink:0;" title="< 500 aUEC/SCU — Vente directe recommandée">
+      <div style="padding:7px 14px;border-right:1px solid var(--border);min-width:130px;flex-shrink:0;" title="Inférieur à 500 aUEC/SCU — Vente directe recommandée">
         <div style="font-size:9px;letter-spacing:1.5px;color:#ef4444;text-transform:uppercase;margin-bottom:2px;">🔴 Vente directe</div>
         <div style="font-family:var(--mono);font-size:14px;color:#ef4444;font-weight:700;">${fmt(summary.vente.qty)} <span style="font-size:9px;color:var(--text-dim);">SCU</span></div>
         <div style="font-size:9px;color:var(--text-dim);margin-top:1px;">${fmtK(summary.vente.valVente)} aUEC · &lt;500</div>
       </div>
 
       <!-- 500< (Craft Vaisseau + FPS) -->
-      <div style="padding:7px 14px;border-right:1px solid var(--border);min-width:150px;flex-shrink:0;" title="≥500 aUEC/SCU — Craft Vaisseau &amp; FPS">
+      <div style="padding:7px 14px;border-right:1px solid var(--border);min-width:150px;flex-shrink:0;" title="Supérieur à 500 aUEC/SCU — Craft Vaisseau &amp; FPS">
         <div style="font-size:9px;letter-spacing:1.5px;color:var(--green);text-transform:uppercase;margin-bottom:2px;">🟢 500&lt;</div>
         <div style="font-family:var(--mono);font-size:14px;color:var(--green);font-weight:700;">${fmt((summary.craft_ship.qty||0)+(summary.craft_fps.qty||0))} <span style="font-size:9px;color:var(--text-dim);">SCU</span></div>
-        <div style="font-size:9px;color:var(--text-dim);margin-top:1px;">${fmtK((summary.craft_ship.valVente||0)+(summary.craft_fps.valVente||0))} aUEC · ≥500</div>
+        <div style="font-size:9px;color:var(--text-dim);margin-top:1px;">${fmtK((summary.craft_ship.valVente||0)+(summary.craft_fps.valVente||0))} aUEC · Supérieur à 500</div>
       </div>
 
       ${summary.unknown.qty > 0 ? `
@@ -5844,7 +5855,7 @@ function qualityBucket(s) {
   if (!q || q === '') return 'aucune';  // pas de qualité = colonne dédiée
   const scores = { mediocre:250, basique:550, acceptable:650, honnete:750, moyenne:850, haute:950 };
   const score = scores[q] || 0;
-  if (score < 500)  return 'vente';    // < 500 : vente uniquement
+  if (score Inférieur à 500)  return 'vente';    // Inférieur à 500 : vente uniquement
   if (score < 800)  return 'vaisseau'; // 500–800 : craft vaisseau
   return 'fps';                        // 800–1000 : craft FPS
 }
@@ -6521,7 +6532,7 @@ function checkUexName(val) {
 
 var QUALITY_META = {
   '':          { label:'',                          color:'var(--text-dim)',   score:'—'    },
-  'mediocre':  { label:'Qualité Médiocre',          color:'#6b7280',          score:'< 500'  },
+  'mediocre':  { label:'Qualité Médiocre',          color:'#6b7280',          score:'Inférieur à 500'  },
   'basique':    { label:'Qualité Basique',            color:'#ef4444',          score:'500–600'},
   'acceptable':{ label:'Qualité Acceptable',        color:'#f97316',          score:'600–700'},
   'honnete':   { label:'Qualité Honnête',           color:'#eab308',          score:'700–800'},
@@ -6547,7 +6558,7 @@ function syncQualityFromExact(val) {
   const sel = document.getElementById('ps-quality');
   if (!sel) return;
   if (!val || isNaN(n)) { sel.value = ''; }
-  else if (n < 500)  sel.value = 'mediocre';
+  else if (n Inférieur à 500)  sel.value = 'mediocre';
   else if (n < 600)  sel.value = 'basique';
   else if (n < 700)  sel.value = 'acceptable';
   else if (n < 800)  sel.value = 'honnete';
@@ -8098,7 +8109,7 @@ function syncArmQualityFromExact(val) {
   const sel = document.getElementById('arm-quality');
   if (!sel) return;
   if (!val || isNaN(n)) sel.value = '';
-  else if (n < 500) sel.value = 'mediocre';
+  else if (n Inférieur à 500) sel.value = 'mediocre';
   else if (n < 600) sel.value = 'basique';
   else if (n < 700) sel.value = 'acceptable';
   else if (n < 800) sel.value = 'honnete';
@@ -8198,7 +8209,7 @@ async function loadPlayerOwnedBlueprints() {
 }
 async function loadAllPlayerBpCounts(){window._playerBpCache=window._playerBpCache||{};for(const p of players){if(!window._playerBpCache[p.id]){const bps=(await DB.get('player-blueprints-'+p.id))||[];window._playerBpCache[p.id]=bps;}}}
 var UEX_PRICE_MAP={'Agricium':9700,'Agricultural Supplies':1400,'Aluminum':3700,'Ammonia':1000,'Aphorite':101100,'Argon':446,'Aslarite':5100,'Astatine':3500,'Atlasium':91900,'Beradom':144200,'Beryl':19900,'Bexalite':28800,'Bioplastic':7600,'Borase':27600,'Carbon':357,'Carbon Silk':20800,'CK13 Gid Seed Blend':533,'Chlorine':1500,'Cobalt':20800,'Compboard':29600,'Construction Materials':12500,'Copper':3700,'Corundum':3700,'DCSR2':1200,'Degnous Root':60300,'Diamond Laminate':87300,'Diamond':7500,'Distilled Spirits':1900,'Dolivine':146300,'Dymantium':22800,'Dynaflex':1900,'Etam':23200,'Feynmaline':341500,'Fresh Food':24800,'Fluorine':1300,'Foam':6300,'Gasping Weevil Eggs':63900,'Glacosite':98600,'Gold':30000,'Golden Medmon':59200,'Hadanite':544300,'Heart Of The Woods':35800,'Helium':1000,'Hephaestanite':4600,'Human Food Bars':487,'Hydrogen Fuel':180,'Hydrogen':1000,'Iodine':11500,'Iron':3400,'Janalite':2900000,'Kopion Horn':35500,'Laranite':8600,'Lindinium':47000,'Marok Gem':52900,'Maze':230000,'Medical Supplies':5200,'Mercury':1000,'Methane':3600,'Neograph':93900,'Neon':18500,'Nitrogen':3000,'Omnapoxy':4600,'Organics':12800,'Osoian Hides':870000,'Ouratite':42300,'Partillium':89900,'Pitambu':60300,'Potassium':569,'Processed Food':1400,'Prota':62400,'Quantanium':150400,'Quantum Fuel':928,'Quartz':4300,'Recycled Material Composite':7200,'Revenant Pod':9600,'Revenant Tree Pollen':1200,'Riccite':67900,'Sadaryx':500000,'Savrilium':123200,'Scrap':3500,'Silicon':2400,'Slam':37900,'Steel':2000,'Stileron':136700,'Stims':5400,'Sunset Berries':82100,'Taranite':25800,'Tin':4000,'Titanium':8100,'Torite':7700,'Tritium':33300,'Tungsten':10300,'Waste':342,'Widow':7400,'Xapyen':4800};
-function getUexTier(n){const p=typeof n==='number'?n:(UEX_PRICE_MAP[n]||0);if(!p)return null;if(p<500)return{key:'vente',label:'🔴 Vente directe',color:'#ef4444',range:'< 500'};if(p<600)return{key:'craft_vaisseau',label:'🟢 500<',color:'var(--green)',range:'500–600'};return{key:'craft_fps',label:'🟢 500<',color:'var(--green)',range:'600+'};}
+function getUexTier(n){const p=typeof n==='number'?n:(UEX_PRICE_MAP[n]||0);if(!p)return null;if(p<500)return{key:'vente',label:'🔴 Vente directe',color:'#ef4444',range:'Inférieur à 500'};if(p<600)return{key:'craft_vaisseau',label:'🟢 Supérieur à 500',color:'var(--green)',range:'500–600'};return{key:'craft_fps',label:'🟢 Supérieur à 500',color:'var(--green)',range:'600+'};}
 var ROLE_COLORS_DEFAULT={Trader:'#60a5fa',Mineur:'#f79028',Transporteur:'#00ffa3',Explorateur:'#a78bfa',Gestionnaire:'#ff4444'};
 var ROLE_COLORS_POOL=['#60a5fa','#f79028','#00ffa3','#a78bfa','#ff4444','#59d0ff','#f472b6','#a3e635','#fb923c','#34d399'];
 var ROLE_COLORS = new Proxy({}, { get(t,k){
