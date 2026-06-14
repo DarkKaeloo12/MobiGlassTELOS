@@ -3262,10 +3262,10 @@ function renderObjectifs() {
           ${o.desc ? '<div class="obj-desc">' + esc(o.desc) + '</div>' : ''}
         </div>
         <div style="display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap;">
-          ${SESSION ? '<button data-action="obj-edit" data-id="'+o.id+'" style="padding:3px 10px;border:1px solid var(--orange);color:var(--orange);background:transparent;cursor:pointer;font-size:10px;font-family:var(--ui);letter-spacing:1px;">✏ ÉDITER</button>' : ''}
-          ${!o.done && SESSION ? '<button data-action="obj-toggle" data-id="'+o.id+'" style="padding:3px 10px;border:1px solid var(--green);color:var(--green);background:rgba(0,255,163,0.07);cursor:pointer;font-size:10px;font-family:var(--ui);letter-spacing:1px;font-weight:700;">✓ VALIDER</button>' : ''}
-          ${o.done && SESSION ? '<button data-action="obj-toggle" data-id="'+o.id+'" style="padding:3px 10px;border:1px solid var(--text-dim);color:var(--text-dim);background:transparent;cursor:pointer;font-size:10px;font-family:var(--ui);letter-spacing:1px;">↺ RÉACTIVER</button>' : ''}
-          ${canManageRoles() ? '<button data-action="obj-delete" data-id="'+o.id+'" style="padding:3px 8px;border:1px solid rgba(255,68,68,0.4);color:var(--red);background:transparent;cursor:pointer;font-size:10px;font-family:var(--ui);">✕</button>' : ''}
+          ${SESSION && (canManageRoles()||hasDroit('edit_objectif')) ? '<button data-action="obj-edit" data-id="'+o.id+'" style="padding:3px 10px;border:1px solid var(--orange);color:var(--orange);background:transparent;cursor:pointer;font-size:10px;font-family:var(--ui);letter-spacing:1px;">✏ ÉDITER</button>' : ''}
+          ${!o.done && SESSION && (canManageRoles()||hasDroit('status_objectif')) ? '<button data-action="obj-toggle" data-id="'+o.id+'" style="padding:3px 10px;border:1px solid var(--green);color:var(--green);background:rgba(0,255,163,0.07);cursor:pointer;font-size:10px;font-family:var(--ui);letter-spacing:1px;font-weight:700;">✓ VALIDER</button>' : ''}
+          ${o.done && SESSION && (canManageRoles()||hasDroit('status_objectif')) ? '<button data-action="obj-toggle" data-id="'+o.id+'" style="padding:3px 10px;border:1px solid var(--text-dim);color:var(--text-dim);background:transparent;cursor:pointer;font-size:10px;font-family:var(--ui);letter-spacing:1px;">↺ RÉACTIVER</button>' : ''}
+          ${(canManageRoles()||hasDroit('delete_objectif')) ? '<button data-action="obj-delete" data-id="'+o.id+'" style="padding:3px 8px;border:1px solid rgba(255,68,68,0.4);color:var(--red);background:transparent;cursor:pointer;font-size:10px;font-family:var(--ui);">✕</button>' : ''}
         </div>
       </div>
       <div class="obj-meta">
@@ -3650,6 +3650,7 @@ async function deleteObjectif(id) {
 }
 
 async function toggleObjDone(id) {
+  if (!canManageRoles() && !hasDroit('status_objectif')) { toast('Accès refusé','','error'); return; }
   const o = OBJECTIFS.find(x => x.id === id);
   if (!o) return;
   o.done = !o.done;
@@ -3826,9 +3827,11 @@ function renderCommandes() {
         ${(()=>{
           const S='padding:3px 9px;cursor:pointer;font-family:var(--ui);font-size:10px;border:';
           let _s='';
+          if(canManageRoles()||hasDroit('status_commande')){
           if(c.status==='attente')                   _s+='<button data-action="cmd-status" data-id="'+c.id+'" data-id2="en_cours" style="'+S+'1px solid var(--orange);color:var(--orange);background:transparent;letter-spacing:1px;">▶ EN COURS</button>';
           if(c.status==='en_cours')                  _s+='<button data-action="cmd-status" data-id="'+c.id+'" data-id2="livree"   style="'+S+'1px solid var(--green);color:var(--green);background:rgba(0,255,163,0.07);font-weight:700;">✓ LIVRÉE</button>';
           if(c.status==='livree'||c.status==='annulee') _s+='<button data-action="cmd-status" data-id="'+c.id+'" data-id2="attente" style="'+S+'1px solid var(--text-dim);color:var(--text-dim);background:transparent;">↺ ROUVRIR</button>';
+          }
           if(canEditCommande(c))
           _s+='<button data-action="cmd-edit"   data-id="'+c.id+'" style="'+S+'1px solid var(--orange);color:var(--orange);background:transparent;">✏</button>';
           _s+='<button data-action="cmd-check"  data-id="'+c.id+'" title="Vérifier le stock TELOS" style="'+S+'1px solid rgba(89,208,255,0.5);color:#59d0ff;background:transparent;">📦</button>';
@@ -4484,6 +4487,7 @@ async function notifyDiscord(commande, event) {
 }
 
 async function setCmdStatus(id, status) {
+  if (!canManageRoles() && !hasDroit('status_commande')) { toast('Accès refusé','','error'); return; }
   const c = COMMANDES.find(x=>x.id===id);
   if (!c) return;
   const oldStatus = c.status;
@@ -6345,7 +6349,9 @@ var DROITS_DEFS = [
   { id:'add_commande',    label:'+ Créer commande',          desc:'Créer une commande' },
   { id:'edit_commande',   label:'✏ Modifier commande',       desc:'Modifier une commande existante' },
   { id:'delete_commande', label:'🗑 Supprimer commande',      desc:'Supprimer une commande' },
+  { id:'status_commande', label:'▶ Gérer état commande',      desc:'Changer le statut d\'une commande (en cours, livrée...)' },
   { id:'edit_objectif',   label:'✏ Modifier objectif',       desc:'Modifier un objectif existant' },
+  { id:'status_objectif', label:'▶ Gérer état objectif',     desc:'Valider ou réactiver un objectif' },
   { id:'delete_objectif', label:'🗑 Supprimer objectif',      desc:'Supprimer un objectif' },
   { id:'edit_blueprint',  label:'✏ Modifier blueprint',      desc:'Modifier un blueprint existant' },
   { id:'use_priority',  label:'🔴 Priorité commande',      desc:'Choisir la priorité d\'une commande' },
@@ -8929,4 +8935,5 @@ async function saveBankTransaction() {
   toast(_bankEditId?'Transaction modifiée':'Transaction enregistrée', desc, 'success');
   _bankEditId = null;
 }
+
 
