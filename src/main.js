@@ -5879,22 +5879,29 @@ function totpDigitInput(el, idx) {
 }
 
 function generateTotpSecret() {
-  const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-  let secret='';
-  const arr=new Uint8Array(20);
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let secret = '';
+  const arr = new Uint8Array(16);
   crypto.getRandomValues(arr);
-  arr.forEach(b=>{ secret+=chars[b%32]; });
-  while (secret.length%8!==0) secret+='=';
-  return secret;
+  arr.forEach(b => { secret += chars[b % 32]; });
+  return secret; // 16 chars, pas de padding
 }
 
 function verifyTotpCode(secret, token) {
   try {
-    const cleanSecret = secret.replace(/=+$/, '').replace(/\s/g,'').toUpperCase();
-    const totp = new OTPAuth.TOTP({ secret:OTPAuth.Secret.fromBase32(cleanSecret), algorithm:'SHA1', digits:6, period:30 });
-    const delta = totp.validate({ token:token.replace(/\s/g,''), window:2 });
+    const cleanSecret = secret.replace(/[^A-Z2-7]/gi, '').toUpperCase();
+    const totp = new OTPAuth.TOTP({
+      secret: OTPAuth.Secret.fromBase32(cleanSecret),
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30
+    });
+    const delta = totp.validate({ token: token.replace(/\s/g, ''), window: 2 });
     return delta !== null;
-  } catch(e) { console.error('TOTP verify error:',e); return false; }
+  } catch(e) {
+    console.error('TOTP verify error:', e);
+    return false;
+  }
 }
 
 function refreshPendingRequests() {
@@ -9198,6 +9205,8 @@ async function saveBankTransaction() {
   toast(_bankEditId?'Transaction modifiée':'Transaction enregistrée', desc, 'success');
   _bankEditId = null;
 }
+
+
 
 
 
