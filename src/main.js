@@ -147,6 +147,7 @@ function updateAllNav() {
 
 function setSession(player) {
   SESSION = { pid: player.id, name: player.name, isAdmin: player.isAdmin||false };
+  if (typeof hideLanding === 'function') hideLanding();
   renderAuthBar();
   // Afficher l'onglet RESSOURCES si Admin/Gestionnaire
   pushLog('system', 'SYSTEM', `Connexion établie : ${player.name} — Accès TELOS ${player.isAdmin?'ADMIN':'standard'}.`);
@@ -8603,6 +8604,7 @@ async function init(){
   FULL_LOGS_DATA = (await DB.get('telos-logs')) || [];
   renderTopRes(); renderPrices(); renderActivity(); renderSysLogs(); renderFullLogs();
   renderCommerce();
+  // La landing est affichée par défaut — elle sera masquée si session active après chargement
   await loadMissions();
   await loadRessourceCatalogue();
   await loadArmurieCatalogue();
@@ -8648,6 +8650,10 @@ async function init(){
   requestAnimationFrame(loop);
   renderAuthBar();
   startAutoSave();
+  // Masquer la landing si déjà connecté, sinon la laisser visible
+  if (SESSION) {
+    if (typeof hideLanding === 'function') hideLanding();
+  }
   setTimeout(()=>toast('UEE NETWORK ONLINE','Synchronisation sécurisée établie.','success'),600);
   setTimeout(()=>toast('⚠ 3 alertes actives','Consultez le panneau Alertes.','warn'),1800);
 }
@@ -9105,6 +9111,9 @@ async function saveBankTransaction() {
   toast(_bankEditId?'Transaction modifiée':'Transaction enregistrée', desc, 'success');
   _bankEditId = null;
 }
+
+
+
 
 
 
