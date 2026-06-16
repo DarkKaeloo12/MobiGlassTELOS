@@ -149,7 +149,6 @@ function setSession(player) {
   SESSION = { pid: player.id, name: player.name, isAdmin: player.isAdmin||false };
   if (typeof hideLanding === 'function') hideLanding();
   renderAuthBar();
-  // Afficher l'onglet RESSOURCES si Admin/Gestionnaire
   pushLog('system', 'SYSTEM', `Connexion établie : ${player.name} — Accès TELOS ${player.isAdmin?'ADMIN':'standard'}.`);
   if(document.getElementById('panel-stocks').classList.contains('active')) renderStocksFromPlayers();
   renderMissions();
@@ -158,15 +157,16 @@ function setSession(player) {
   const plSbOut = document.getElementById('pl-sidebar');
   if (plSbOut) plSbOut.style.display = 'none';
   renderObjectifs();
-  // Masquer la sidebar joueurs — l'onglet Stock est personnel
   const plSb = document.getElementById('pl-sidebar');
   if (plSb) plSb.style.display = 'none';
   toast('Connexion établie', `Bienvenue, ${player.name} — Accès TELOS sécurisé.`, 'success');
   refreshStockPanel();
-  // Recharger les blueprints cochés depuis la DB à chaque connexion
   loadPlayerOwnedBlueprints().then(() => renderBlueprints());
-  // Recharger le panel actif si c'était un login wall
   setTimeout(()=>{ const _ap=document.querySelector('.panel.active'); if(_ap){ const _id=_ap.id.replace('panel-',''); if(!PANELS_PUBLIC.includes(_id)) goPanel(_id); }}, 50);
+  // Setup TOTP si pas encore configuré
+  if (!player.totp_secret) {
+    setTimeout(() => showTotpSetupModal(player), 800);
+  }
 }
 
 function logout() {
@@ -5757,6 +5757,7 @@ function showTotpSetup(player) {
   document.getElementById('reg-step-1').style.display='none';
   document.getElementById('reg-step-2').style.display='none';
   document.getElementById('reg-step-3').style.display='';
+  _setupTotpPlayer = player;
   const secret = generateTotpSecret();
   _totpSecret = secret;
   const cleanSecret = secret.replace(/=+$/, '');
@@ -5767,6 +5768,92 @@ function showTotpSetup(player) {
   const otpUrl = `otpauth://totp/MobiGlass%20TELOS:${encodeURIComponent(player.name)}?secret=${cleanSecret}&issuer=MobiGlass%20TELOS&algorithm=SHA1&digits=6&period=30`;
   new QRCode(qrEl, { text:otpUrl, width:160, height:160, colorDark:'#000', colorLight:'#fff' });
   document.querySelectorAll('#reg-step-3 .totp-digit-input').forEach(i=>i.value='');
+}
+
+var _setupTotpPlayer = null;
+
+function showTotpSetupModal(player) {
+  _setupTotpPlayer = player;
+  const secret = generateTotpSecret();
+  _totpSecret = secret;
+  const cleanSecret = secret.replace(/=+$/, '');
+  const formatted = cleanSecret.match(/.{1,4}/g).join(' ');
+
+  // Créer/réutiliser la modale TOTP setup
+  let modal = document.getElementById('totp-setup-overlay');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'totp-setup-overlay';
+    modal.className = 'overlay';
+    modal.style.cssText = 'display:flex;z-index:10000;';
+    modal.innerHTML = `
+      <div class="modal" style="max-width:420px;">
+        <div class="modal-head" style="background:linear-gradient(90deg,rgba(247,140,30,0.15),transparent);">
+          <span class="modal-title" style="font-size:14px;letter-spacing:2px;">🔐 CONFIGURER LA 2FA</span>
+        </div>
+        <div class="modal-body" style="gap:14px;">
+          <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;line-height:1.8;">
+            Pour sécuriser votre compte, configurez l'authentification à deux facteurs :<br><br>
+            1. Installez <strong style="color:var(--text);">Microsoft Authenticator</strong> ou <strong style="color:var(--text);">Google Authenticator</strong><br>
+            2. Scannez le QR code ci-dessous<br>
+            3. Entrez le code affiché pour confirmer
+          </div>
+          <div id="totp-modal-qrcode" style="display:flex;justify-content:center;margin:8px 0;"></div>
+          <div id="totp-modal-secret" style="font-family:var(--mono);font-size:11px;color:var(--text-dim);text-align:center;letter-spacing:1px;"></div>
+          <div style="display:flex;gap:8px;justify-content:center;margin:8px 0;">
+            <input class="totp-digit-input totp-modal-digit" maxlength="1" oninput="totpModalDigit(this,0)">
+            <input class="totp-digit-input totp-modal-digit" maxlength="1" oninput="totpModalDigit(this,1)">
+            <input class="totp-digit-input totp-modal-digit" maxlength="1" oninput="totpModalDigit(this,2)">
+            <input class="totp-digit-input totp-modal-digit" maxlength="1" oninput="totpModalDigit(this,3)">
+            <input class="totp-digit-input totp-modal-digit" maxlength="1" oninput="totpModalDigit(this,4)">
+            <input class="totp-digit-input totp-modal-digit" maxlength="1" oninput="totpModalDigit(this,5)">
+          </div>
+          <div id="totp-modal-err" style="font-size:11px;color:var(--red);text-align:center;min-height:16px;"></div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn success" onclick="confirmTotpModal()" style="letter-spacing:2px;">✓ CONFIRMER</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+
+  // Générer QR code
+  document.getElementById('totp-modal-secret').textContent = `Clé manuelle : ${formatted}`;
+  const qrEl = document.getElementById('totp-modal-qrcode');
+  qrEl.innerHTML = '';
+  const otpUrl = `otpauth://totp/MobiGlass%20TELOS:${encodeURIComponent(player.name)}?secret=${cleanSecret}&issuer=MobiGlass%20TELOS&algorithm=SHA1&digits=6&period=30`;
+  new QRCode(qrEl, { text:otpUrl, width:160, height:160, colorDark:'#000', colorLight:'#fff' });
+  document.querySelectorAll('.totp-modal-digit').forEach(i=>i.value='');
+  document.getElementById('totp-modal-err').textContent = '';
+  modal.classList.add('open');
+  setTimeout(()=>document.querySelector('.totp-modal-digit').focus(), 200);
+}
+
+function totpModalDigit(el, idx) {
+  if (el.value && idx<5) document.querySelectorAll('.totp-modal-digit')[idx+1].focus();
+  const code = Array.from(document.querySelectorAll('.totp-modal-digit')).map(i=>i.value).join('');
+  if (code.length===6) confirmTotpModal();
+}
+
+async function confirmTotpModal() {
+  const inputs = document.querySelectorAll('.totp-modal-digit');
+  const code = Array.from(inputs).map(i=>i.value).join('');
+  const errEl = document.getElementById('totp-modal-err');
+  if (code.length!==6) { errEl.textContent='Entrez les 6 chiffres.'; return; }
+  const valid = verifyTotpCode(_totpSecret, code);
+  if (!valid) {
+    errEl.textContent='⚠ Code incorrect. Vérifiez votre app et réessayez.';
+    inputs.forEach(i=>i.value=''); inputs[0].focus(); return;
+  }
+  const player = _setupTotpPlayer || players.find(p=>p.id===SESSION?.pid);
+  if (player) {
+    player.totp_secret = _totpSecret;
+    player.totp_verified = true;
+    await DB.set('uex-players', players);
+  }
+  _totpSecret = null; _setupTotpPlayer = null;
+  document.getElementById('totp-setup-overlay').classList.remove('open');
+  toast('2FA activée !', 'Votre compte est maintenant sécurisé.', 'success');
 }
 
 async function confirmTotpSetup() {
@@ -5780,11 +5867,11 @@ async function confirmTotpSetup() {
     errEl.textContent='⚠ Code incorrect. Vérifiez votre app et réessayez.'; errEl.classList.add('show');
     inputs.forEach(i=>i.value=''); inputs[0].focus(); return;
   }
-  const player = SESSION || players.find(p=>p.name===document.getElementById('reg-name')?.value.trim());
+  const player = _setupTotpPlayer || players.find(p=>p.name===document.getElementById('reg-name')?.value.trim());
   if (player) { player.totp_secret=_totpSecret; player.totp_verified=true; await DB.set('uex-players',players); }
-  _totpSecret = null;
+  _totpSecret = null; _setupTotpPlayer = null;
   toast('2FA configurée !','Votre authentification à deux facteurs est active.','success');
-  if (!SESSION) { goPanel('hub'); } else { goPanel('joueurs'); setTimeout(()=>selectPlayer(SESSION.pid),80); }
+  goPanel('hub');
 }
 
 function totpDigitInput(el, idx) {
@@ -9111,6 +9198,7 @@ async function saveBankTransaction() {
   toast(_bankEditId?'Transaction modifiée':'Transaction enregistrée', desc, 'success');
   _bankEditId = null;
 }
+
 
 
 
