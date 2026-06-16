@@ -299,42 +299,107 @@ function avHtml(playerOrName, size=34) {
 function openLoginModal(targetPid=null, afterAction=null) {
   _loginTarget = { pid: targetPid, action: afterAction };
   const overlay = document.getElementById('login-overlay');
-  document.getElementById('login-name-sel').innerHTML =
-    '<option value="">— Sélectionnez votre compte —</option>' +
-    players.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  // Reset les deux étapes
+  document.getElementById('login-step-1').style.display = '';
+  document.getElementById('login-step-2').style.display = 'none';
+  document.getElementById('login-name-input').value = '';
   document.getElementById('login-code').value = '';
   document.getElementById('login-err').textContent = '';
+  document.getElementById('login-totp-err').textContent = '';
+  _loginPendingPlayer = null;
   overlay.classList.add('open');
-  setTimeout(()=>document.getElementById('login-code').focus(), 100);
+  setTimeout(()=>document.getElementById('login-name-input').focus(), 100);
 }
 
 function closeLoginModal() {
   document.getElementById('login-overlay').classList.remove('open');
   _loginTarget = null;
+  _loginPendingPlayer = null;
 }
 
 
+// ── Variable temporaire pour stocker le joueur en attente de TOTP ──
+var _loginPendingPlayer = null;
+
 async function doLogin() {
-  const pid  = document.getElementById('login-name-sel').value;
+  const nameInput = document.getElementById('login-name-input').value.trim();
   const code = document.getElementById('login-code').value.trim();
-  const err  = document.getElementById('login-err');
+  const err = document.getElementById('login-err');
   err.textContent = '';
 
-  if (!pid)  { err.textContent = 'Sélectionnez votre compte.'; return; }
-  if (!code) { err.textContent = 'Entrez votre code corpo.'; return; }
+  if (!nameInput) { err.textContent = 'Entrez votre pseudo.'; return; }
+  if (!code) { err.textContent = 'Entrez votre mot de passe.'; return; }
 
-  const player = players.find(p=>p.id===pid);
-  if (!player) { err.textContent = 'Compte introuvable.'; return; }
+  const player = players.find(p => p.name.toLowerCase() === nameInput.toLowerCase());
+  if (!player) { err.textContent = 'Pseudo introuvable.'; return; }
+
+  // Vérifier statut
+  if (player.status === 'pending') { err.textContent = '⏳ Votre demande est en attente de validation.'; return; }
+  if (player.status === 'suspended') { err.textContent = '🔴 Votre accès a été suspendu. Contactez un Admin.'; return; }
+  if (player.status === 'rejected') { err.textContent = '❌ Votre demande a été refusée.'; return; }
 
   const hash = await sha256(code);
   if (hash !== player.codeHash) {
-    err.textContent = '⚠ Code corpo incorrect. Accès refusé.';
+    err.textContent = '⚠ Mot de passe incorrect.';
     return;
   }
 
-  setSession(player);
+  // Si TOTP non configuré encore → accès direct (migration joueurs existants)
+  if (!player.totp_secret) {
+    setSession(player);
+    closeLoginModal();
+    if (_loginTarget?.action) _loginTarget.action();
+    return;
+  }
+
+  // Passer à l'étape TOTP
+  _loginPendingPlayer = player;
+  document.getElementById('login-step-1').style.display = 'none';
+  document.getElementById('login-step-2').style.display = '';
+  document.getElementById('login-totp-name').textContent = player.name;
+  // Reset les inputs TOTP
+  document.querySelectorAll('#login-step-2 .totp-digit-input').forEach(i => i.value = '');
+  document.getElementById('login-totp-err').textContent = '';
+  document.querySelector('#login-step-2 .totp-digit-input').focus();
+}
+
+function backToLoginStep1() {
+  _loginPendingPlayer = null;
+  document.getElementById('login-step-1').style.display = '';
+  document.getElementById('login-step-2').style.display = 'none';
+  document.getElementById('login-totp-err').textContent = '';
+}
+
+function totpLoginDigit(el, idx) {
+  if (el.value && idx < 5) {
+    const inputs = document.querySelectorAll('#login-step-2 .totp-digit-input');
+    inputs[idx + 1].focus();
+  }
+  // Auto-valider si 6 chiffres remplis
+  const inputs = document.querySelectorAll('#login-step-2 .totp-digit-input');
+  const code = Array.from(inputs).map(i => i.value).join('');
+  if (code.length === 6) doLoginTotp();
+}
+
+async function doLoginTotp() {
+  if (!_loginPendingPlayer) return;
+  const inputs = document.querySelectorAll('#login-step-2 .totp-digit-input');
+  const code = Array.from(inputs).map(i => i.value).join('');
+  const errEl = document.getElementById('login-totp-err');
+
+  if (code.length !== 6) { errEl.textContent = 'Entrez les 6 chiffres.'; return; }
+
+  const valid = verifyTotpCode(_loginPendingPlayer.totp_secret, code);
+  if (!valid) {
+    errEl.textContent = '⚠ Code incorrect ou expiré. Réessayez.';
+    inputs.forEach(i => i.value = '');
+    inputs[0].focus();
+    return;
+  }
+
+  setSession(_loginPendingPlayer);
+  _loginPendingPlayer = null;
   closeLoginModal();
-  // Si une action était en attente
   if (_loginTarget?.action) _loginTarget.action();
 }
 
@@ -5631,62 +5696,296 @@ function toggleGestionnaireCode(role) {
   }
 }
 
-async function registerPlayer(){
+// ── Variables TOTP ──
+var _totpSecret = null;
+var _rsiVerified = false;
+var _rsiVerifiedHandle = null;
+
+function resetRsiCheck() {
+  _rsiVerified = false;
+  _rsiVerifiedHandle = null;
+  const s = document.getElementById('rsi-check-status');
+  if (s) { s.textContent = ''; s.className = ''; }
+}
+
+async function verifyRsiMembership() {
+  const rsiUrl = document.getElementById('reg-rsi').value.trim();
+  const name = document.getElementById('reg-name').value.trim();
+  const statusEl = document.getElementById('rsi-check-status');
+  const btn = document.getElementById('btn-verify-rsi');
+
+  // Extraire le pseudo RSI depuis l'URL ou utiliser le pseudo du jeu
+  let handle = name;
+  const match = rsiUrl.match(/citizens\/([^\/\?]+)/i);
+  if (match) handle = match[1];
+
+  if (!handle) { statusEl.textContent = '⚠ Entrez votre pseudo ou lien RSI.'; statusEl.className = 'err'; return; }
+
+  statusEl.textContent = '⟳ Vérification en cours...'; statusEl.className = 'loading';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('https://ykdamleudeatahrxicgk.supabase.co/functions/v1/verify-rsi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: handle })
+    });
+    const data = await res.json();
+
+    if (data.valid) {
+      _rsiVerified = true;
+      _rsiVerifiedHandle = data.handle || handle;
+      statusEl.textContent = `✅ Membre TELOS COVENANT confirmé (${_rsiVerifiedHandle})`;
+      statusEl.className = 'ok';
+    } else {
+      _rsiVerified = false;
+      statusEl.textContent = `❌ ${data.error || 'Non membre de TELOS COVENANT'}`;
+      statusEl.className = 'err';
+    }
+  } catch(e) {
+    statusEl.textContent = '⚠ Erreur de vérification. Réessayez.';
+    statusEl.className = 'err';
+  }
+  btn.disabled = false;
+}
+
+async function registerPlayer() {
   const name = document.getElementById('reg-name').value.trim();
   const rsi  = document.getElementById('reg-rsi').value.trim();
-  const uex  = document.getElementById('reg-uex').value.trim();
-  const role = document.getElementById('reg-role').value;
-  let ok=true;
-  ['err-name','err-rsi','err-corpo-access','err-code','err-gestionnaire-code'].forEach(id=>{ const e=document.getElementById(id); if(e){e.textContent='';e.classList.remove('show');} });
-  if (!name||name.length<2){ showErr('err-name','Le pseudo doit faire au moins 2 caractères.'); ok=false; }
-  else if (players.find(p=>p.name.toLowerCase()===name.toLowerCase())){ showErr('err-name','Ce pseudo est déjà enregistré.'); ok=false; }
-  if (!rsi||!rsi.startsWith('http')){ showErr('err-rsi','URL RSI invalide (doit commencer par https://).'); ok=false; }
-  // Validation code d'accès corpo — TOUJOURS obligatoire
-  const corpoAccess = document.getElementById('reg-corpo-access').value.trim();
-  if (!corpoAccess) {
-    showErr('err-corpo-access', '⚠ Le code d\'accès corpo est obligatoire.');
-    ok = false;
-  } else if (!(await verifyCorpoAccessCode(corpoAccess))) {
-    const stored = await getCorpoAccessHash();
-    if (!stored) {
-      showErr('err-corpo-access', '⚠ Aucun code corpo configuré — contactez l\'Admin.');
-    } else {
-      showErr('err-corpo-access', '⚠ Code d\'accès corpo incorrect.');
-    }
-    ok = false;
-  }
+  const uex  = document.getElementById('reg-uex')?.value.trim() || '';
   const regCode = document.getElementById('reg-code').value.trim();
-  if (!regCode || regCode.length < 4) { showErr('err-code', 'Le code personnel doit faire au moins 4 caractères.'); ok=false; }
-  // Validation code gestionnaire
-  if (role === 'Gestionnaire') {
-    const gCode = document.getElementById('reg-gestionnaire-code').value.trim();
-    if (!gCode) { showErr('err-gestionnaire-code', 'Le code d\'accès Gestionnaire est requis.'); ok=false; }
-    else {
-      const gHash = await getGestionnaireHash();
-      const gInputHash = await sha256(gCode);
-      if (gInputHash !== gHash) { showErr('err-gestionnaire-code', '⚠ Code incorrect — accès Gestionnaire refusé.'); ok=false; }
-    }
-  }
+  const regCodeConfirm = document.getElementById('reg-code-confirm').value.trim();
+
+  // Reset erreurs
+  ['err-name','err-rsi','err-code','err-code-confirm'].forEach(id => {
+    const e = document.getElementById(id); if(e){e.textContent='';e.classList.remove('show');}
+  });
+
+  let ok = true;
+  if (!name || name.length < 2) { showErr('err-name','Le pseudo doit faire au moins 2 caractères.'); ok=false; }
+  else if (players.find(p=>p.name.toLowerCase()===name.toLowerCase())) { showErr('err-name','Ce pseudo est déjà enregistré.'); ok=false; }
+
+  if (!_rsiVerified) { showErr('err-rsi','Veuillez vérifier votre appartenance à TELOS COVENANT.'); ok=false; }
+
+  if (!regCode || regCode.length < 6) { showErr('err-code','Le mot de passe doit faire au moins 6 caractères.'); ok=false; }
+  if (regCode !== regCodeConfirm) { showErr('err-code-confirm','Les mots de passe ne correspondent pas.'); ok=false; }
+
   if (!ok) return;
+
   const codeHash = await sha256(regCode);
   const isFounder = players.length === 0;
-  const pid = 'p_'+Date.now();
-  const p={ id:pid, name, rsi, uex:uex||null, role, codeHash, isAdmin:isFounder, joinedAt:new Date().toISOString() };
+  const pid = 'p_' + Date.now();
+
+  const p = {
+    id: pid,
+    name,
+    rsi,
+    uex: uex || null,
+    rsi_handle: _rsiVerifiedHandle || name,
+    role: isFounder ? 'Admin' : ROLES[0] || 'Fleet',
+    codeHash,
+    isAdmin: isFounder,
+    status: isFounder ? 'approved' : 'pending',
+    joinedAt: new Date().toISOString(),
+    totp_secret: null,
+    totp_verified: false,
+  };
+
   players.push(p);
   await DB.set('uex-players', players);
-  await DB.set('telos-player-code-'+pid, { code: regCode, name, savedAt: new Date().toISOString() });
-  ['reg-name','reg-rsi','reg-uex','reg-corpo-access','reg-code'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  populateRegRoles();
+
+  if (isFounder) {
+    // Premier joueur = fondateur, accès direct + setup TOTP
+    setSession(p);
+    showTotpSetup(p);
+  } else {
+    // Afficher page d'attente
+    document.getElementById('reg-step-1').style.display = 'none';
+    document.getElementById('reg-step-2').style.display = '';
+    document.getElementById('reg-waiting-name').innerHTML =
+      `Votre demande a été transmise aux administrateurs TELOS.<br>
+       Pseudo : <span style="color:var(--orange);">${esc(name)}</span><br><br>
+       Vous serez notifié dès qu'elle sera traitée.`;
+
+    // Notifier Discord
+    notifyDiscordNewRequest(p);
+
+    // Mettre à jour le badge dans Paramètres
+    updateDemandesBadge();
+  }
+}
+
+async function notifyDiscordNewRequest(p) {
+  const webhook = await DB.get('telos-discord-webhook');
+  if (!webhook) return;
+  try {
+    await fetch(webhook, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        embeds: [{
+          title: '📥 Nouvelle demande d\'accès — MobiGlass TELOS',
+          color: 0xf78c1e,
+          fields: [
+            { name: 'Pseudo', value: p.name, inline: true },
+            { name: 'RSI Handle', value: p.rsi_handle || '—', inline: true },
+            { name: 'Profil RSI', value: p.rsi, inline: false },
+          ],
+          footer: { text: 'MobiGlass TELOS — Traitez la demande dans Paramètres → Demandes' },
+          timestamp: new Date().toISOString(),
+        }]
+      })
+    });
+  } catch(e) {}
+}
+
+function showTotpSetup(player) {
+  document.getElementById('reg-step-1').style.display = 'none';
+  document.getElementById('reg-step-2').style.display = 'none';
+  document.getElementById('reg-step-3').style.display = '';
+
+  // Générer clé secrète TOTP
+  const secret = generateTotpSecret();
+  _totpSecret = secret;
+
+  // Afficher la clé manuelle
+  const secretDisplay = document.getElementById('totp-secret-display');
+  const formatted = secret.match(/.{1,4}/g).join(' ');
+  secretDisplay.textContent = `Clé manuelle : ${formatted}`;
+
+  // Générer QR code
+  const qrEl = document.getElementById('totp-qrcode');
+  qrEl.innerHTML = '';
+  const otpUrl = `otpauth://totp/TELOS:${encodeURIComponent(player.name)}?secret=${secret}&issuer=MobiGlass+TELOS`;
+  new QRCode(qrEl, { text: otpUrl, width: 160, height: 160, colorDark: '#000', colorLight: '#fff' });
+
+  // Reset inputs
+  document.querySelectorAll('#reg-step-3 .totp-digit-input').forEach(i => i.value = '');
+}
+
+async function confirmTotpSetup() {
+  const inputs = document.querySelectorAll('#reg-step-3 .totp-digit-input');
+  const code = Array.from(inputs).map(i => i.value).join('');
+  const errEl = document.getElementById('err-totp-setup');
+
+  if (code.length !== 6) { errEl.textContent = 'Entrez les 6 chiffres.'; errEl.classList.add('show'); return; }
+  if (!_totpSecret) { errEl.textContent = 'Erreur : secret TOTP manquant.'; errEl.classList.add('show'); return; }
+
+  const valid = verifyTotpCode(_totpSecret, code);
+  if (!valid) {
+    errEl.textContent = '⚠ Code incorrect. Vérifiez votre app et réessayez.';
+    errEl.classList.add('show');
+    inputs.forEach(i => i.value = '');
+    inputs[0].focus();
+    return;
+  }
+
+  // Sauvegarder le secret TOTP sur le joueur
+  const player = SESSION || players.find(p => p.name === document.getElementById('reg-name')?.value.trim());
+  if (player) {
+    player.totp_secret = _totpSecret;
+    player.totp_verified = true;
+    await DB.set('uex-players', players);
+  }
+
+  _totpSecret = null;
+  toast('2FA configurée !', 'Votre authentification à deux facteurs est active.', 'success');
+
+  if (!SESSION) {
+    // Vient de l'inscription fondateur
+    goPanel('hub');
+  } else {
+    goPanel('joueurs');
+    setTimeout(() => selectPlayer(SESSION.pid), 80);
+  }
+}
+
+function totpDigitInput(el, idx) {
+  if (el.value && idx < 5) {
+    const inputs = document.querySelectorAll('#reg-step-3 .totp-digit-input');
+    inputs[idx + 1].focus();
+  }
+}
+
+// ── TOTP crypto ──
+function generateTotpSecret() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let secret = '';
+  const arr = new Uint8Array(20);
+  crypto.getRandomValues(arr);
+  arr.forEach(b => { secret += chars[b % 32]; });
+  return secret;
+}
+
+function verifyTotpCode(secret, token) {
+  try {
+    const totp = new OTPAuth.TOTP({ secret: OTPAuth.Secret.fromBase32(secret), digits: 6, period: 30 });
+    const delta = totp.validate({ token, window: 1 });
+    return delta !== null;
+  } catch(e) { return false; }
+}
+
+// ── Panel Demandes (Paramètres) ──
+function refreshPendingRequests() {
+  const list = document.getElementById('pending-requests-list');
+  if (!list) return;
+  const pending = players.filter(p => p.status === 'pending');
+  if (!pending.length) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px;">Aucune demande en attente.</div>';
+    updateDemandesBadge();
+    return;
+  }
+  list.innerHTML = pending.map(p => `
+    <div class="pending-request-card">
+      <div class="pr-name">${esc(p.name)}</div>
+      <div class="pr-meta">
+        RSI Handle : ${esc(p.rsi_handle||'—')} &nbsp;·&nbsp;
+        <a href="${esc(p.rsi)}" target="_blank" style="color:var(--blue);">Voir profil RSI ↗</a> &nbsp;·&nbsp;
+        ${fmtDate(p.joinedAt)}
+      </div>
+      <div class="pr-actions">
+        <select id="role-select-${p.id}" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--ui);font-size:12px;padding:5px 8px;">
+          ${ROLES.map(r => `<option value="${r}">${r}</option>`).join('')}
+        </select>
+        <button onclick="approvePlayer('${p.id}')" style="padding:4px 14px;border:1px solid var(--green);color:var(--green);background:transparent;cursor:pointer;font-family:var(--ui);font-size:11px;letter-spacing:1px;">✓ ACCEPTER</button>
+        <button onclick="rejectPlayer('${p.id}')" style="padding:4px 14px;border:1px solid var(--red);color:var(--red);background:transparent;cursor:pointer;font-family:var(--ui);font-size:11px;letter-spacing:1px;">✕ REFUSER</button>
+      </div>
+    </div>
+  `).join('');
+  updateDemandesBadge();
+}
+
+async function approvePlayer(pid) {
+  const p = players.find(x => x.id === pid);
+  if (!p) return;
+  const role = document.getElementById(`role-select-${pid}`)?.value || ROLES[0];
+  p.status = 'approved';
+  p.role = role;
+  p.approvedAt = new Date().toISOString();
+  await DB.set('uex-players', players);
+  refreshPendingRequests();
   renderPlayerList();
-  updateBadges();
-  updateGlobalFilter();
-  renderPartners();
-  pushActivity('⬡', `${name} a rejoint le réseau TELOS`, '', true);
-  updateKPIs();
-  toast('Joueur enregistré !', `${name} a rejoint le réseau TELOS.`, 'success');
-  setSession(p);
-  goPanel('joueurs');
-  setTimeout(()=>selectPlayer(p.id), 80);
+  toast('Joueur accepté', `${p.name} a été accepté avec le rôle ${role}.`, 'success');
+  pushLog('system', 'Système', `✅ ${p.name} accepté dans TELOS (rôle: ${role})`);
+}
+
+async function rejectPlayer(pid) {
+  const p = players.find(x => x.id === pid);
+  if (!p || !confirm(`Refuser la demande de "${p.name}" ?`)) return;
+  p.status = 'rejected';
+  p.rejectedAt = new Date().toISOString();
+  await DB.set('uex-players', players);
+  refreshPendingRequests();
+  toast('Demande refusée', p.name, 'info');
+  pushLog('system', 'Système', `❌ Demande de ${p.name} refusée`);
+}
+
+function updateDemandesBadge() {
+  const badge = document.getElementById('demandes-badge');
+  if (!badge) return;
+  const count = players.filter(p => p.status === 'pending').length;
+  if (count > 0) { badge.textContent = count; badge.style.display = 'inline'; }
+  else { badge.style.display = 'none'; }
 }
 function showErr(id,msg){ document.getElementById(id).textContent=msg; document.getElementById(id).classList.add('show'); }
 
@@ -7315,13 +7614,14 @@ function openSettings() {
 }
 
 function openSettingsTab(tab) {
-  ['general','roles','backup'].forEach(t=>{
+  ['general','demandes','roles','backup'].forEach(t=>{
     const panel=document.getElementById('stab-panel-'+t);
     const btn=document.getElementById('stab-'+t);
     if(panel) panel.style.display = t===tab ? 'flex' : 'none';
     if(btn){ btn.style.color=t===tab?'var(--text-bright)':'var(--text-dim)'; btn.style.borderBottomColor=t===tab?'var(--orange)':'transparent'; }
   });
   if(tab==='roles') renderRolesDroitsPanel();
+  if(tab==='demandes') { if(!canManageRoles()) { openSettingsTab('general'); return; } refreshPendingRequests(); }
   if(tab==='backup') { if(!hasDroit('backup') && !SESSION?.isAdmin) { openSettingsTab('general'); return; } refreshBackupList(); }
 }
 
@@ -8454,9 +8754,12 @@ async function init(){
       p.avatar = null;
       _avatarFixed = true;
     }
+    // Migration : ajouter status approved aux joueurs existants sans status
+    if (!p.status) { p.status = 'approved'; _avatarFixed = true; }
   });
   if (_avatarFixed) await DB.set('uex-players', players);
   await loadRolesConfig();
+  updateDemandesBadge && updateDemandesBadge();
   updateNavBanque && updateNavBanque();
   await loadBankData();
   renderHubBankStats();
@@ -8935,5 +9238,7 @@ async function saveBankTransaction() {
   toast(_bankEditId?'Transaction modifiée':'Transaction enregistrée', desc, 'success');
   _bankEditId = null;
 }
+
+
 
 
