@@ -8653,6 +8653,13 @@ async function init(){
   setInterval(renderActivity, 60000);
   requestAnimationFrame(loop);
   renderAuthBar();
+  const _authBtn = document.getElementById('sb-auth-btn');
+  if (_authBtn) {
+    _authBtn.addEventListener('click', () => {
+      if (SESSION) logout();
+      else openLoginModal();
+    });
+  }
   startAutoSave();
   if(SESSION){if(typeof hideLanding==='function')hideLanding();}
   setTimeout(()=>toast('UEE NETWORK ONLINE','Synchronisation sécurisée établie.','success'),600);
@@ -9112,8 +9119,6 @@ async function saveBankTransaction() {
   toast(_bankEditId?'Transaction modifiée':'Transaction enregistrée', desc, 'success');
   _bankEditId = null;
 }
-
-
 
 
 
