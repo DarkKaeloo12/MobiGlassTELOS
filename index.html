@@ -84,7 +84,7 @@
     <circle cx="340" cy="47" r="22" fill="#f78c1e" opacity="0.12" class="tnode-fill"/>
     <polyline points="333,52 340,40 347,52" fill="none" stroke="#f78c1e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
     <line x1="340" y1="40" x2="340" y2="56" stroke="#f78c1e" stroke-width="1.8" stroke-linecap="round" opacity="0.85"/>
-    <text class="tnode-lbl" x="340" y="82">COMMANDES</text>
+    <text class="tnode-lbl" x="340" y="88">COMMANDES</text>
   </g>
   <g class="tnode" onmouseenter="document.getElementById('t-status').textContent='◈ ARMURERIE — Équipements FPS et armes vaisseau'" onmouseleave="document.getElementById('t-status').textContent='◆ MOBIGLASS TELOS — UNIFIED EXCHANGE NETWORK ◆'">
     <circle cx="490" cy="118" r="22" fill="rgb(12,27,42)" stroke="#f78c1e" stroke-width="1.5" class="tnode-bg"/>
@@ -94,7 +94,7 @@
     <line x1="490" y1="124" x2="490" y2="130" stroke="#f78c1e" stroke-width="1.8" stroke-linecap="round" opacity="0.85"/>
     <line x1="478" y1="118" x2="484" y2="118" stroke="#f78c1e" stroke-width="1.8" stroke-linecap="round" opacity="0.85"/>
     <line x1="496" y1="118" x2="502" y2="118" stroke="#f78c1e" stroke-width="1.8" stroke-linecap="round" opacity="0.85"/>
-    <text class="tnode-lbl" x="490" y="152">ARMURERIE</text>
+    <text class="tnode-lbl" x="490" y="158">ARMURERIE</text>
   </g>
   <g class="tnode" onmouseenter="document.getElementById('t-status').textContent='◈ BANQUE — Trésorerie et transactions TELOS'" onmouseleave="document.getElementById('t-status').textContent='◆ MOBIGLASS TELOS — UNIFIED EXCHANGE NETWORK ◆'">
     <circle cx="490" cy="318" r="22" fill="rgb(12,27,42)" stroke="#f78c1e" stroke-width="1.5" class="tnode-bg"/>
@@ -102,7 +102,7 @@
     <rect fill="#f78c1e" opacity="0.7" x="481" y="316" width="4" height="8"/>
     <rect fill="#f78c1e" opacity="0.7" x="487" y="310" width="4" height="14"/>
     <rect fill="#f78c1e" opacity="0.7" x="493" y="313" width="4" height="11"/>
-    <text class="tnode-lbl" x="490" y="352">BANQUE</text>
+    <text class="tnode-lbl" x="490" y="358">BANQUE</text>
   </g>
   <g class="tnode" onmouseenter="document.getElementById('t-status').textContent='◈ STOCKS — Inventaire consolidé par partenaire'" onmouseleave="document.getElementById('t-status').textContent='◆ MOBIGLASS TELOS — UNIFIED EXCHANGE NETWORK ◆'">
     <circle cx="340" cy="385" r="22" fill="rgb(12,27,42)" stroke="#f78c1e" stroke-width="1.5" class="tnode-bg"/>
@@ -113,7 +113,7 @@
     <rect fill="#f78c1e" opacity="0.7" x="331" y="384" width="5" height="5"/>
     <rect fill="#f78c1e" opacity="0.7" x="338" y="384" width="5" height="5"/>
     <rect fill="#f78c1e" opacity="0.7" x="345" y="384" width="5" height="5"/>
-    <text class="tnode-lbl" x="340" y="420">STOCKS</text>
+    <text class="tnode-lbl" x="340" y="426">STOCKS</text>
   </g>
   <g class="tnode" onmouseenter="document.getElementById('t-status').textContent='◈ MISSIONS — Contrats et objectifs de la corpo'" onmouseleave="document.getElementById('t-status').textContent='◆ MOBIGLASS TELOS — UNIFIED EXCHANGE NETWORK ◆'">
     <circle cx="190" cy="318" r="22" fill="rgb(12,27,42)" stroke="#f78c1e" stroke-width="1.5" class="tnode-bg"/>
@@ -121,7 +121,7 @@
     <circle cx="190" cy="318" r="10" fill="none" stroke="#f78c1e" stroke-width="1.5" opacity="0.85"/>
     <circle cx="190" cy="318" r="5" fill="none" stroke="#f78c1e" stroke-width="1" opacity="0.5"/>
     <circle cx="190" cy="318" r="2" fill="#f78c1e"/>
-    <text class="tnode-lbl" x="190" y="352">MISSIONS</text>
+    <text class="tnode-lbl" x="190" y="358">MISSIONS</text>
   </g>
   <g class="tnode" onmouseenter="document.getElementById('t-status').textContent='◈ BLUEPRINTS — Plans de craft et ressources corpo'" onmouseleave="document.getElementById('t-status').textContent='◆ MOBIGLASS TELOS — UNIFIED EXCHANGE NETWORK ◆'">
     <circle cx="190" cy="118" r="22" fill="rgb(12,27,42)" stroke="#f78c1e" stroke-width="1.5" class="tnode-bg"/>
@@ -130,7 +130,7 @@
     <line x1="184" y1="113" x2="192" y2="113" stroke="#f78c1e" stroke-width="1" opacity="0.7"/>
     <line x1="184" y1="117" x2="192" y2="117" stroke="#f78c1e" stroke-width="1" opacity="0.7"/>
     <line x1="184" y1="121" x2="189" y2="121" stroke="#f78c1e" stroke-width="1" opacity="0.7"/>
-    <text class="tnode-lbl" x="190" y="152">BLUEPRINTS</text>
+    <text class="tnode-lbl" x="190" y="158">BLUEPRINTS</text>
   </g>
   <text text-anchor="middle" x="340" y="462" fill="#f78c1e" opacity="1" font-family="'Share Tech Mono',monospace" font-size="34">MOBIGLASS</text>
   <line x1="70" y1="476" x2="225" y2="476" stroke="#f78c1e" stroke-width="1.5" opacity="0.55"/>
@@ -1620,7 +1620,7 @@ function showLoginWall(){} // stub
 
 
 <!-- ══════════════ LOGIN CORPO OVERLAY ══════════════ -->
-<div class="overlay" id="login-overlay" onclick="if(event.target===this)closeLoginModal()">
+<div class="overlay" id="login-overlay" style="display:none;" onclick="if(event.target===this)closeLoginModal()">
   <div class="modal" style="max-width:400px;">
     <div class="modal-head" style="background:linear-gradient(90deg,rgba(247,140,30,0.15),transparent);">
       <span class="modal-title" style="font-size:16px;letter-spacing:2px;">⬡ CONNEXION CORPO TELOS</span>
@@ -2425,6 +2425,7 @@ document.addEventListener('DOMContentLoaded',()=>initLandingParticles());
 </script>
 </body>
 </html>
+
 
 
 

@@ -149,6 +149,7 @@ function setSession(player) {
   SESSION = { pid: player.id, name: player.name, isAdmin: player.isAdmin||false };
   if (typeof hideLanding === 'function') hideLanding();
   renderAuthBar();
+  // Afficher l'onglet RESSOURCES si Admin/Gestionnaire
   pushLog('system', 'SYSTEM', `Connexion établie : ${player.name} — Accès TELOS ${player.isAdmin?'ADMIN':'standard'}.`);
   if(document.getElementById('panel-stocks').classList.contains('active')) renderStocksFromPlayers();
   renderMissions();
@@ -157,21 +158,23 @@ function setSession(player) {
   const plSbOut = document.getElementById('pl-sidebar');
   if (plSbOut) plSbOut.style.display = 'none';
   renderObjectifs();
+  // Masquer la sidebar joueurs — l'onglet Stock est personnel
   const plSb = document.getElementById('pl-sidebar');
   if (plSb) plSb.style.display = 'none';
   toast('Connexion établie', `Bienvenue, ${player.name} — Accès TELOS sécurisé.`, 'success');
   refreshStockPanel();
+  // Recharger les blueprints cochés depuis la DB à chaque connexion
   loadPlayerOwnedBlueprints().then(() => renderBlueprints());
   setTimeout(()=>{ const _ap=document.querySelector('.panel.active'); if(_ap){ const _id=_ap.id.replace('panel-',''); if(!PANELS_PUBLIC.includes(_id)) goPanel(_id); }}, 50);
-  // Setup TOTP si pas encore configuré
-  if (!player.totp_secret) {
-    setTimeout(() => showTotpSetupModal(player), 800);
-  }
+  if(!player.totp_secret){setTimeout(()=>showTotpSetupModal(player),800);}
 }
 
 function logout() {
   SESSION = null;
   renderAuthBar();
+  // Afficher login wall sur le panel actif si protégé
+  const _apl = document.querySelector('.panel.active');
+  if (_apl) { const _idl=_apl.id.replace('panel-',''); if(!PANELS_PUBLIC.includes(_idl)) showLoginWall(_apl, _idl); }
   pushLog('system', 'SYSTEM', 'Session TELOS fermée — déconnexion utilisateur.');
   renderMissions();
   updateNavRessources && updateNavRessources();
@@ -295,21 +298,25 @@ function avHtml(playerOrName, size=34) {
 }
 
 /* ── Login Modal ── */
-/* ── Login Modal ── */
 var _loginPendingPlayer = null;
 
 function openLoginModal(targetPid=null, afterAction=null) {
   _loginTarget = { pid: targetPid, action: afterAction };
   const overlay = document.getElementById('login-overlay');
-  document.getElementById('login-step-1').style.display = '';
-  document.getElementById('login-step-2').style.display = 'none';
-  document.getElementById('login-name-input').value = '';
+  const s1 = document.getElementById('login-step-1');
+  const s2 = document.getElementById('login-step-2');
+  if(s1) s1.style.display='';
+  if(s2) s2.style.display='none';
+  const ni = document.getElementById('login-name-input');
+  if(ni) ni.value='';
   document.getElementById('login-code').value = '';
   document.getElementById('login-err').textContent = '';
-  document.getElementById('login-totp-err').textContent = '';
+  const te = document.getElementById('login-totp-err');
+  if(te) te.textContent='';
   _loginPendingPlayer = null;
+  overlay.style.display = '';
   overlay.classList.add('open');
-  setTimeout(()=>document.getElementById('login-name-input').focus(), 100);
+  setTimeout(()=>{ const el=document.getElementById('login-name-input'); if(el) el.focus(); else document.getElementById('login-code').focus(); }, 100);
 }
 
 function closeLoginModal() {
@@ -318,61 +325,58 @@ function closeLoginModal() {
   _loginPendingPlayer = null;
 }
 
-async function doLogin() {
-  const nameInput = document.getElementById('login-name-input').value.trim();
-  const code = document.getElementById('login-code').value.trim();
-  const err = document.getElementById('login-err');
-  err.textContent = '';
-  if (!nameInput) { err.textContent = 'Entrez votre pseudo.'; return; }
-  if (!code) { err.textContent = 'Entrez votre mot de passe.'; return; }
-  const player = players.find(p => p.name.toLowerCase() === nameInput.toLowerCase());
-  if (!player) { err.textContent = 'Pseudo introuvable.'; return; }
-  if (player.status === 'pending') { err.textContent = '⏳ Votre demande est en attente de validation.'; return; }
-  if (player.status === 'suspended') { err.textContent = '🔴 Votre accès a été suspendu. Contactez un Admin.'; return; }
-  if (player.status === 'rejected') { err.textContent = '❌ Votre demande a été refusée.'; return; }
-  const hash = await sha256(code);
-  if (hash !== player.codeHash) { err.textContent = '⚠ Mot de passe incorrect.'; return; }
-  if (!player.totp_secret) {
-    setSession(player); closeLoginModal();
-    if (_loginTarget?.action) _loginTarget.action();
-    return;
-  }
-  _loginPendingPlayer = player;
-  document.getElementById('login-step-1').style.display = 'none';
-  document.getElementById('login-step-2').style.display = '';
-  document.getElementById('login-totp-name').textContent = player.name;
-  document.querySelectorAll('#login-step-2 .totp-digit-input').forEach(i => i.value = '');
-  document.getElementById('login-totp-err').textContent = '';
-  setTimeout(()=>document.querySelector('#login-step-2 .totp-digit-input').focus(),100);
-}
-
 function backToLoginStep1() {
   _loginPendingPlayer = null;
-  document.getElementById('login-step-1').style.display = '';
-  document.getElementById('login-step-2').style.display = 'none';
+  document.getElementById('login-step-1').style.display='';
+  document.getElementById('login-step-2').style.display='none';
 }
 
 function totpLoginDigit(el, idx) {
-  if (el.value && idx < 5) document.querySelectorAll('#login-step-2 .totp-digit-input')[idx+1].focus();
-  const code = Array.from(document.querySelectorAll('#login-step-2 .totp-digit-input')).map(i=>i.value).join('');
-  if (code.length === 6) doLoginTotp();
+  if(el.value && idx<5) document.querySelectorAll('#login-step-2 .totp-digit-input')[idx+1].focus();
+  const code=Array.from(document.querySelectorAll('#login-step-2 .totp-digit-input')).map(i=>i.value).join('');
+  if(code.length===6) doLoginTotp();
 }
 
 async function doLoginTotp() {
-  if (!_loginPendingPlayer) return;
-  const inputs = document.querySelectorAll('#login-step-2 .totp-digit-input');
-  const code = Array.from(inputs).map(i=>i.value).join('');
-  const errEl = document.getElementById('login-totp-err');
-  if (code.length !== 6) { errEl.textContent = 'Entrez les 6 chiffres.'; return; }
-  const valid = verifyTotpCode(_loginPendingPlayer.totp_secret, code);
-  if (!valid) {
-    errEl.textContent = '⚠ Code incorrect ou expiré. Réessayez.';
-    inputs.forEach(i=>i.value=''); inputs[0].focus(); return;
+  if(!_loginPendingPlayer) return;
+  const inputs=document.querySelectorAll('#login-step-2 .totp-digit-input');
+  const code=Array.from(inputs).map(i=>i.value).join('');
+  const errEl=document.getElementById('login-totp-err');
+  if(code.length!==6){errEl.textContent='Entrez les 6 chiffres.';return;}
+  const valid=verifyTotpCode(_loginPendingPlayer.totp_secret,code);
+  if(!valid){
+    errEl.textContent='⚠ Code incorrect ou expiré. Réessayez.';
+    inputs.forEach(i=>i.value='');inputs[0].focus();return;
   }
   setSession(_loginPendingPlayer);
-  _loginPendingPlayer = null;
+  _loginPendingPlayer=null;
   closeLoginModal();
-  if (_loginTarget?.action) _loginTarget.action();
+  if(_loginTarget?.action) _loginTarget.action();
+}
+
+async function doLogin() {
+  const nameInput=document.getElementById('login-name-input');
+  const name=nameInput?nameInput.value.trim():'';
+  const code=document.getElementById('login-code').value.trim();
+  const err=document.getElementById('login-err');
+  err.textContent='';
+  if(!name){err.textContent='Entrez votre pseudo.';return;}
+  if(!code){err.textContent='Entrez votre mot de passe.';return;}
+  const player=players.find(p=>p.name.toLowerCase()===name.toLowerCase());
+  if(!player){err.textContent='Pseudo introuvable.';return;}
+  if(player.status==='pending'){err.textContent='⏳ Votre demande est en attente de validation.';return;}
+  if(player.status==='suspended'){err.textContent='🔴 Accès suspendu. Contactez un Admin.';return;}
+  if(player.status==='rejected'){err.textContent='❌ Votre demande a été refusée.';return;}
+  const hash=await sha256(code);
+  if(hash!==player.codeHash){err.textContent='⚠ Mot de passe incorrect.';return;}
+  if(!player.totp_secret){setSession(player);closeLoginModal();if(_loginTarget?.action)_loginTarget.action();return;}
+  _loginPendingPlayer=player;
+  document.getElementById('login-step-1').style.display='none';
+  document.getElementById('login-step-2').style.display='';
+  document.getElementById('login-totp-name').textContent=player.name;
+  document.querySelectorAll('#login-step-2 .totp-digit-input').forEach(i=>i.value='');
+  document.getElementById('login-totp-err').textContent='';
+  setTimeout(()=>document.querySelector('#login-step-2 .totp-digit-input').focus(),100);
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -5668,288 +5672,198 @@ function toggleGestionnaireCode(role) {
   }
 }
 
-// ── Variables TOTP & RSI ──
-var _totpSecret = null;
-var _rsiVerified = false;
-var _rsiVerifiedHandle = null;
-
-function resetRsiCheck() {
-  _rsiVerified = false; _rsiVerifiedHandle = null;
-  const s = document.getElementById('rsi-check-status');
-  if (s) { s.textContent=''; s.className=''; }
-}
-
-async function verifyRsiMembership() {
-  const rsiUrl = document.getElementById('reg-rsi').value.trim();
-  const name = document.getElementById('reg-name').value.trim();
-  const statusEl = document.getElementById('rsi-check-status');
-  const btn = document.getElementById('btn-verify-rsi');
-  let handle = name;
-  const match = rsiUrl.match(/citizens\/([^\/\?]+)/i);
-  if (match) handle = match[1];
-  if (!handle) { statusEl.textContent='⚠ Entrez votre pseudo ou lien RSI.'; statusEl.className='err'; return; }
-  statusEl.textContent='⟳ Vérification en cours...'; statusEl.className='loading';
-  btn.disabled = true;
-  try {
-    const res = await fetch('https://ykdamleudeatahrxicgk.supabase.co/functions/v1/verify-rsi', {
-      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:handle})
-    });
-    const data = await res.json();
-    if (data.valid) {
-      _rsiVerified = true; _rsiVerifiedHandle = data.handle || handle;
-      statusEl.textContent=`✅ Membre TELOS COVENANT confirmé (${_rsiVerifiedHandle})`; statusEl.className='ok';
-    } else {
-      _rsiVerified = false;
-      statusEl.textContent=`❌ ${data.error||'Non membre de TELOS COVENANT'}`; statusEl.className='err';
-    }
-  } catch(e) { statusEl.textContent='⚠ Erreur de vérification. Réessayez.'; statusEl.className='err'; }
-  btn.disabled = false;
-}
-
 async function registerPlayer() {
   const name = document.getElementById('reg-name').value.trim();
   const rsi  = document.getElementById('reg-rsi').value.trim();
   const uex  = document.getElementById('reg-uex')?.value.trim() || '';
   const regCode = document.getElementById('reg-code').value.trim();
   const regCodeConfirm = document.getElementById('reg-code-confirm').value.trim();
-  ['err-name','err-rsi','err-code','err-code-confirm'].forEach(id => {
-    const e=document.getElementById(id); if(e){e.textContent='';e.classList.remove('show');}
-  });
-  let ok = true;
-  if (!name||name.length<2) { showErr('err-name','Le pseudo doit faire au moins 2 caractères.'); ok=false; }
-  else if (players.find(p=>p.name.toLowerCase()===name.toLowerCase())) { showErr('err-name','Ce pseudo est déjà enregistré.'); ok=false; }
-  if (!_rsiVerified) { showErr('err-rsi','Veuillez vérifier votre appartenance à TELOS COVENANT.'); ok=false; }
-  if (!regCode||regCode.length<6) { showErr('err-code','Le mot de passe doit faire au moins 6 caractères.'); ok=false; }
-  if (regCode!==regCodeConfirm) { showErr('err-code-confirm','Les mots de passe ne correspondent pas.'); ok=false; }
-  if (!ok) return;
-  const codeHash = await sha256(regCode);
-  const isFounder = players.length === 0;
-  const pid = 'p_'+Date.now();
-  const p = { id:pid, name, rsi, uex:uex||null, rsi_handle:_rsiVerifiedHandle||name,
-    role:isFounder?'Admin':ROLES[0]||'Fleet', codeHash, isAdmin:isFounder,
-    status:isFounder?'approved':'pending', joinedAt:new Date().toISOString(),
-    totp_secret:null, totp_verified:false };
+  ['err-name','err-rsi','err-code','err-code-confirm'].forEach(id=>{const e=document.getElementById(id);if(e){e.textContent='';e.classList.remove('show');}});
+  let ok=true;
+  if(!name||name.length<2){showErr('err-name','Le pseudo doit faire au moins 2 caractères.');ok=false;}
+  else if(players.find(p=>p.name.toLowerCase()===name.toLowerCase())){showErr('err-name','Ce pseudo est déjà enregistré.');ok=false;}
+  if(!_rsiVerified){showErr('err-rsi','Veuillez vérifier votre appartenance à TELOS COVENANT.');ok=false;}
+  if(!regCode||regCode.length<6){showErr('err-code','Le mot de passe doit faire au moins 6 caractères.');ok=false;}
+  if(regCode!==regCodeConfirm){showErr('err-code-confirm','Les mots de passe ne correspondent pas.');ok=false;}
+  if(!ok) return;
+  const codeHash=await sha256(regCode);
+  const isFounder=players.length===0;
+  const pid='p_'+Date.now();
+  const p={id:pid,name,rsi,uex:uex||null,rsi_handle:_rsiVerifiedHandle||name,
+    role:isFounder?'Admin':ROLES[0]||'Fleet',codeHash,isAdmin:isFounder,
+    status:isFounder?'approved':'pending',joinedAt:new Date().toISOString(),
+    totp_secret:null,totp_verified:false};
   players.push(p);
-  await DB.set('uex-players', players);
-  if (isFounder) { setSession(p); showTotpSetup(p); }
-  else {
+  await DB.set('uex-players',players);
+  if(isFounder){setSession(p);showTotpSetup(p);}
+  else{
     document.getElementById('reg-step-1').style.display='none';
     document.getElementById('reg-step-2').style.display='';
     document.getElementById('reg-waiting-name').innerHTML=
-      `Votre demande a été transmise aux administrateurs TELOS.<br>Pseudo : <span style="color:var(--orange);">${esc(name)}</span><br><br>Vous serez notifié dès qu'elle sera traitée.`;
+      `Votre demande a été transmise aux administrateurs TELOS.<br>Pseudo : <span style="color:var(--orange);">${esc(name)}</span>`;
     notifyDiscordNewRequest(p);
-    updateDemandesBadge && updateDemandesBadge();
+    updateDemandesBadge&&updateDemandesBadge();
   }
 }
 
-async function notifyDiscordNewRequest(p) {
-  const webhook = await DB.get('telos-discord-webhook');
-  if (!webhook) return;
-  try {
-    await fetch(webhook, { method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ embeds:[{ title:'📥 Nouvelle demande d\'accès — MobiGlass TELOS', color:0xf78c1e,
-        fields:[{name:'Pseudo',value:p.name,inline:true},{name:'RSI Handle',value:p.rsi_handle||'—',inline:true},{name:'Profil RSI',value:p.rsi,inline:false}],
-        footer:{text:'MobiGlass TELOS — Traitez la demande dans Paramètres → Demandes'}, timestamp:new Date().toISOString() }] }) });
-  } catch(e) {}
+var _totpSecret=null,_rsiVerified=false,_rsiVerifiedHandle=null,_setupTotpPlayer=null;
+
+function resetRsiCheck(){_rsiVerified=false;_rsiVerifiedHandle=null;const s=document.getElementById('rsi-check-status');if(s){s.textContent='';s.className='';}}
+
+async function verifyRsiMembership(){
+  const rsiUrl=document.getElementById('reg-rsi').value.trim();
+  const name=document.getElementById('reg-name').value.trim();
+  const statusEl=document.getElementById('rsi-check-status');
+  const btn=document.getElementById('btn-verify-rsi');
+  let handle=name;
+  const match=rsiUrl.match(/citizens\/([^\/\?]+)/i);
+  if(match) handle=match[1];
+  if(!handle){statusEl.textContent='⚠ Entrez votre pseudo ou lien RSI.';statusEl.className='err';return;}
+  statusEl.textContent='⟳ Vérification en cours...';statusEl.className='loading';
+  btn.disabled=true;
+  try{
+    const res=await fetch('https://ykdamleudeatahrxicgk.supabase.co/functions/v1/verify-rsi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:handle})});
+    const data=await res.json();
+    if(data.valid){_rsiVerified=true;_rsiVerifiedHandle=data.handle||handle;statusEl.textContent=`✅ Membre TELOS COVENANT confirmé (${_rsiVerifiedHandle})`;statusEl.className='ok';}
+    else{_rsiVerified=false;statusEl.textContent=`❌ ${data.error||'Non membre de TELOS COVENANT'}`;statusEl.className='err';}
+  }catch(e){statusEl.textContent='⚠ Erreur de vérification.';statusEl.className='err';}
+  btn.disabled=false;
 }
 
-function showTotpSetup(player) {
+async function notifyDiscordNewRequest(p){
+  const webhook=await DB.get('telos-discord-webhook');if(!webhook)return;
+  try{await fetch(webhook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({embeds:[{title:"📥 Nouvelle demande d'accès — MobiGlass TELOS",color:0xf78c1e,fields:[{name:'Pseudo',value:p.name,inline:true},{name:'RSI Handle',value:p.rsi_handle||'—',inline:true},{name:'Profil RSI',value:p.rsi,inline:false}],footer:{text:'MobiGlass TELOS'},timestamp:new Date().toISOString()}]})});}catch(e){}
+}
+
+function showTotpSetup(player){
+  _setupTotpPlayer=player;
   document.getElementById('reg-step-1').style.display='none';
   document.getElementById('reg-step-2').style.display='none';
   document.getElementById('reg-step-3').style.display='';
-  _setupTotpPlayer = player;
-  const secret = generateTotpSecret();
-  _totpSecret = secret;
-  const cleanSecret = secret.replace(/=+$/, '');
-  const formatted = cleanSecret.match(/.{1,4}/g).join(' ');
-  document.getElementById('totp-secret-display').textContent = `Clé manuelle : ${formatted}`;
-  const qrEl = document.getElementById('totp-qrcode');
-  qrEl.innerHTML = '';
-  const otpUrl = `otpauth://totp/MobiGlass%20TELOS:${encodeURIComponent(player.name)}?secret=${cleanSecret}&issuer=MobiGlass%20TELOS&algorithm=SHA1&digits=6&period=30`;
-  new QRCode(qrEl, { text:otpUrl, width:160, height:160, colorDark:'#000', colorLight:'#fff' });
+  const secret=generateTotpSecret();_totpSecret=secret;
+  const cleanSecret=secret.replace(/=+$/,'');
+  document.getElementById('totp-secret-display').textContent=`Clé manuelle : ${cleanSecret.match(/.{1,4}/g).join(' ')}`;
+  const qrEl=document.getElementById('totp-qrcode');qrEl.innerHTML='';
+  const otpUrl=`otpauth://totp/MobiGlass%20TELOS:${encodeURIComponent(player.name)}?secret=${cleanSecret}&issuer=MobiGlass%20TELOS&algorithm=SHA1&digits=6&period=30`;
+  new QRCode(qrEl,{text:otpUrl,width:160,height:160,colorDark:'#000',colorLight:'#fff'});
   document.querySelectorAll('#reg-step-3 .totp-digit-input').forEach(i=>i.value='');
 }
 
-var _setupTotpPlayer = null;
-
-function showTotpSetupModal(player) {
-  _setupTotpPlayer = player;
-  const secret = generateTotpSecret();
-  _totpSecret = secret;
-  const cleanSecret = secret.replace(/=+$/, '');
-  const formatted = cleanSecret.match(/.{1,4}/g).join(' ');
-
-  // Créer/réutiliser la modale TOTP setup
-  let modal = document.getElementById('totp-setup-overlay');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'totp-setup-overlay';
-    modal.className = 'overlay';
-    modal.style.cssText = 'display:flex;z-index:10000;';
-    modal.innerHTML = `
-      <div class="modal" style="max-width:420px;">
-        <div class="modal-head" style="background:linear-gradient(90deg,rgba(247,140,30,0.15),transparent);">
-          <span class="modal-title" style="font-size:14px;letter-spacing:2px;">🔐 CONFIGURER LA 2FA</span>
-        </div>
-        <div class="modal-body" style="gap:14px;">
-          <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;line-height:1.8;">
-            Pour sécuriser votre compte, configurez l'authentification à deux facteurs :<br><br>
-            1. Installez <strong style="color:var(--text);">Microsoft Authenticator</strong> ou <strong style="color:var(--text);">Google Authenticator</strong><br>
-            2. Scannez le QR code ci-dessous<br>
-            3. Entrez le code affiché pour confirmer
-          </div>
-          <div id="totp-modal-qrcode" style="display:flex;justify-content:center;margin:8px 0;"></div>
-          <div id="totp-modal-secret" style="font-family:var(--mono);font-size:11px;color:var(--text-dim);text-align:center;letter-spacing:1px;"></div>
-          <div style="display:flex;gap:8px;justify-content:center;margin:8px 0;">
-            <input class="totp-digit-input totp-modal-digit" maxlength="1" oninput="totpModalDigit(this,0)">
-            <input class="totp-digit-input totp-modal-digit" maxlength="1" oninput="totpModalDigit(this,1)">
-            <input class="totp-digit-input totp-modal-digit" maxlength="1" oninput="totpModalDigit(this,2)">
-            <input class="totp-digit-input totp-modal-digit" maxlength="1" oninput="totpModalDigit(this,3)">
-            <input class="totp-digit-input totp-modal-digit" maxlength="1" oninput="totpModalDigit(this,4)">
-            <input class="totp-digit-input totp-modal-digit" maxlength="1" oninput="totpModalDigit(this,5)">
-          </div>
-          <div id="totp-modal-err" style="font-size:11px;color:var(--red);text-align:center;min-height:16px;"></div>
-        </div>
-        <div class="modal-foot">
-          <button class="btn success" onclick="confirmTotpModal()" style="letter-spacing:2px;">✓ CONFIRMER</button>
-        </div>
-      </div>`;
+function showTotpSetupModal(player){
+  _setupTotpPlayer=player;
+  const secret=generateTotpSecret();_totpSecret=secret;
+  sessionStorage.setItem('_totp_tmp', secret); // persist en cas de refresh
+  const cleanSecret=secret.replace(/=+$/,'');
+  let modal=document.getElementById('totp-setup-overlay');
+  if(!modal){
+    modal=document.createElement('div');modal.id='totp-setup-overlay';modal.className='overlay';
+    modal.style.cssText='display:flex;z-index:10000;';
+    modal.innerHTML=`<div class="modal" style="max-width:420px;"><div class="modal-head" style="background:linear-gradient(90deg,rgba(247,140,30,0.15),transparent);"><span class="modal-title" style="font-size:14px;letter-spacing:2px;">🔐 CONFIGURER LA 2FA</span></div><div class="modal-body" style="gap:14px;"><div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;line-height:1.8;">Configurez l'authentification à deux facteurs :<br><br>1. Installez <strong style="color:var(--text);">Microsoft Authenticator</strong> ou <strong>Google Authenticator</strong><br>2. Scannez le QR code<br>3. Entrez le code pour confirmer</div><div id="totp-modal-qrcode" style="display:flex;justify-content:center;margin:8px 0;"></div><div id="totp-modal-secret" style="font-family:var(--mono);font-size:11px;color:var(--text-dim);text-align:center;letter-spacing:1px;"></div><div style="display:flex;gap:8px;justify-content:center;margin:8px 0;"><input class="totp-digit-input totp-modal-digit" maxlength="1" oninput="totpModalDigit(this,0)"><input class="totp-digit-input totp-modal-digit" maxlength="1" oninput="totpModalDigit(this,1)"><input class="totp-digit-input totp-modal-digit" maxlength="1" oninput="totpModalDigit(this,2)"><input class="totp-digit-input totp-modal-digit" maxlength="1" oninput="totpModalDigit(this,3)"><input class="totp-digit-input totp-modal-digit" maxlength="1" oninput="totpModalDigit(this,4)"><input class="totp-digit-input totp-modal-digit" maxlength="1" oninput="totpModalDigit(this,5)"></div><div id="totp-modal-err" style="font-size:11px;color:var(--red);text-align:center;min-height:16px;"></div></div><div class="modal-foot"><button class="btn success" onclick="confirmTotpModal()" style="letter-spacing:2px;">✓ CONFIRMER</button></div></div>`;
     document.body.appendChild(modal);
   }
-
-  // Générer QR code
-  document.getElementById('totp-modal-secret').textContent = `Clé manuelle : ${formatted}`;
-  const qrEl = document.getElementById('totp-modal-qrcode');
-  qrEl.innerHTML = '';
-  const otpUrl = `otpauth://totp/MobiGlass%20TELOS:${encodeURIComponent(player.name)}?secret=${cleanSecret}&issuer=MobiGlass%20TELOS&algorithm=SHA1&digits=6&period=30`;
-  new QRCode(qrEl, { text:otpUrl, width:160, height:160, colorDark:'#000', colorLight:'#fff' });
+  document.getElementById('totp-modal-secret').textContent=`Clé manuelle : ${cleanSecret.match(/.{1,4}/g).join(' ')}`;
+  const qrEl=document.getElementById('totp-modal-qrcode');qrEl.innerHTML='';
+  const otpUrl=`otpauth://totp/MobiGlass%20TELOS:${encodeURIComponent(player.name)}?secret=${cleanSecret}&issuer=MobiGlass%20TELOS&algorithm=SHA1&digits=6&period=30`;
+  new QRCode(qrEl,{text:otpUrl,width:160,height:160,colorDark:'#000',colorLight:'#fff'});
   document.querySelectorAll('.totp-modal-digit').forEach(i=>i.value='');
-  document.getElementById('totp-modal-err').textContent = '';
+  document.getElementById('totp-modal-err').textContent='';
   modal.classList.add('open');
-  setTimeout(()=>document.querySelector('.totp-modal-digit').focus(), 200);
+  setTimeout(()=>document.querySelector('.totp-modal-digit').focus(),200);
 }
 
-function totpModalDigit(el, idx) {
-  if (el.value && idx<5) document.querySelectorAll('.totp-modal-digit')[idx+1].focus();
-  const code = Array.from(document.querySelectorAll('.totp-modal-digit')).map(i=>i.value).join('');
-  if (code.length===6) confirmTotpModal();
+function totpModalDigit(el,idx){
+  if(el.value&&idx<5) document.querySelectorAll('.totp-modal-digit')[idx+1].focus();
+  const code=Array.from(document.querySelectorAll('.totp-modal-digit')).map(i=>i.value).join('');
+  if(code.length===6) confirmTotpModal();
 }
 
-async function confirmTotpModal() {
-  const inputs = document.querySelectorAll('.totp-modal-digit');
-  const code = Array.from(inputs).map(i=>i.value).join('');
-  const errEl = document.getElementById('totp-modal-err');
-  if (code.length!==6) { errEl.textContent='Entrez les 6 chiffres.'; return; }
-  const valid = verifyTotpCode(_totpSecret, code);
-  if (!valid) {
-    errEl.textContent='⚠ Code incorrect. Vérifiez votre app et réessayez.';
-    inputs.forEach(i=>i.value=''); inputs[0].focus(); return;
-  }
-  const player = _setupTotpPlayer || players.find(p=>p.id===SESSION?.pid);
-  if (player) {
-    player.totp_secret = _totpSecret;
-    player.totp_verified = true;
-    await DB.set('uex-players', players);
-  }
-  _totpSecret = null; _setupTotpPlayer = null;
+async function confirmTotpModal(){
+  const inputs=document.querySelectorAll('.totp-modal-digit');
+  const code=Array.from(inputs).map(i=>i.value).join('');
+  const errEl=document.getElementById('totp-modal-err');
+  if(code.length!==6){errEl.textContent='Entrez les 6 chiffres.';return;}
+  // Récupérer le secret depuis sessionStorage si _totpSecret est null
+  if(!_totpSecret) _totpSecret = sessionStorage.getItem('_totp_tmp');
+  if(!_totpSecret){errEl.textContent='⚠ Erreur : session expirée. Rechargez la page.';return;}
+  const valid=verifyTotpCode(_totpSecret,code);
+  if(!valid){errEl.textContent='⚠ Code incorrect.';inputs.forEach(i=>i.value='');inputs[0].focus();return;}
+  const player=_setupTotpPlayer||players.find(p=>p.id===SESSION?.pid);
+  if(player){player.totp_secret=_totpSecret;player.totp_verified=true;await DB.set('uex-players',players);}
+  _totpSecret=null;_setupTotpPlayer=null;
+  sessionStorage.removeItem('_totp_tmp');
   document.getElementById('totp-setup-overlay').classList.remove('open');
-  toast('2FA activée !', 'Votre compte est maintenant sécurisé.', 'success');
+  toast('2FA activée !','Votre compte est maintenant sécurisé.','success');
 }
 
-async function confirmTotpSetup() {
-  const inputs = document.querySelectorAll('#reg-step-3 .totp-digit-input');
-  const code = Array.from(inputs).map(i=>i.value).join('');
-  const errEl = document.getElementById('err-totp-setup');
-  if (code.length!==6) { errEl.textContent='Entrez les 6 chiffres.'; errEl.classList.add('show'); return; }
-  if (!_totpSecret) { errEl.textContent='Erreur : secret TOTP manquant.'; errEl.classList.add('show'); return; }
-  const valid = verifyTotpCode(_totpSecret, code);
-  if (!valid) {
-    errEl.textContent='⚠ Code incorrect. Vérifiez votre app et réessayez.'; errEl.classList.add('show');
-    inputs.forEach(i=>i.value=''); inputs[0].focus(); return;
-  }
-  const player = _setupTotpPlayer || players.find(p=>p.name===document.getElementById('reg-name')?.value.trim());
-  if (player) { player.totp_secret=_totpSecret; player.totp_verified=true; await DB.set('uex-players',players); }
-  _totpSecret = null; _setupTotpPlayer = null;
-  toast('2FA configurée !','Votre authentification à deux facteurs est active.','success');
+async function confirmTotpSetup(){
+  const inputs=document.querySelectorAll('#reg-step-3 .totp-digit-input');
+  const code=Array.from(inputs).map(i=>i.value).join('');
+  const errEl=document.getElementById('err-totp-setup');
+  if(code.length!==6){errEl.textContent='Entrez les 6 chiffres.';errEl.classList.add('show');return;}
+  if(!_totpSecret){errEl.textContent='Erreur : secret TOTP manquant.';errEl.classList.add('show');return;}
+  const valid=verifyTotpCode(_totpSecret,code);
+  if(!valid){errEl.textContent='⚠ Code incorrect.';errEl.classList.add('show');inputs.forEach(i=>i.value='');inputs[0].focus();return;}
+  const player=_setupTotpPlayer||players.find(p=>p.name===document.getElementById('reg-name')?.value.trim());
+  if(player){player.totp_secret=_totpSecret;player.totp_verified=true;await DB.set('uex-players',players);}
+  _totpSecret=null;_setupTotpPlayer=null;
+  toast('2FA configurée !','Authentification à deux facteurs active.','success');
   goPanel('hub');
 }
 
-function totpDigitInput(el, idx) {
-  if (el.value && idx<5) document.querySelectorAll('#reg-step-3 .totp-digit-input')[idx+1].focus();
+function totpDigitInput(el,idx){
+  if(el.value&&idx<5) document.querySelectorAll('#reg-step-3 .totp-digit-input')[idx+1].focus();
 }
 
-function generateTotpSecret() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-  let secret = '';
-  const arr = new Uint8Array(16);
+function generateTotpSecret(){
+  const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let secret='';
+  const arr=new Uint8Array(16);
   crypto.getRandomValues(arr);
-  arr.forEach(b => { secret += chars[b % 32]; });
-  return secret; // 16 chars, pas de padding
+  arr.forEach(b=>{secret+=chars[b%32];});
+  return secret;
 }
 
-function verifyTotpCode(secret, token) {
-  try {
-    const cleanSecret = secret.replace(/[^A-Z2-7]/gi, '').toUpperCase();
-    const totp = new OTPAuth.TOTP({
-      secret: OTPAuth.Secret.fromBase32(cleanSecret),
-      algorithm: 'SHA1',
-      digits: 6,
-      period: 30
-    });
-    const delta = totp.validate({ token: token.replace(/\s/g, ''), window: 2 });
-    return delta !== null;
-  } catch(e) {
-    console.error('TOTP verify error:', e);
-    return false;
-  }
+function verifyTotpCode(secret,token){
+  try{
+    const cleanSecret=secret.replace(/[^A-Z2-7]/gi,'').toUpperCase();
+    const totp=new OTPAuth.TOTP({secret:OTPAuth.Secret.fromBase32(cleanSecret),algorithm:'SHA1',digits:6,period:30});
+    const delta=totp.validate({token:token.replace(/\s/g,''),window:2});
+    return delta!==null;
+  }catch(e){console.error('TOTP error:',e);return false;}
 }
 
-function refreshPendingRequests() {
-  const list = document.getElementById('pending-requests-list');
-  if (!list) return;
-  const pending = players.filter(p=>p.status==='pending');
-  if (!pending.length) { list.innerHTML='<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px;">Aucune demande en attente.</div>'; updateDemandesBadge(); return; }
-  list.innerHTML = pending.map(p=>`
-    <div class="pending-request-card">
-      <div class="pr-name">${esc(p.name)}</div>
-      <div class="pr-meta">RSI : ${esc(p.rsi_handle||'—')} &nbsp;·&nbsp; <a href="${esc(p.rsi)}" target="_blank" style="color:var(--blue);">Voir profil RSI ↗</a> &nbsp;·&nbsp; ${fmtDate(p.joinedAt)}</div>
-      <div class="pr-actions">
-        <select id="role-select-${p.id}" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--ui);font-size:12px;padding:5px 8px;">
-          ${ROLES.map(r=>`<option value="${r}">${r}</option>`).join('')}
-        </select>
-        <button onclick="approvePlayer('${p.id}')" style="padding:4px 14px;border:1px solid var(--green);color:var(--green);background:transparent;cursor:pointer;font-family:var(--ui);font-size:11px;letter-spacing:1px;">✓ ACCEPTER</button>
-        <button onclick="rejectPlayer('${p.id}')" style="padding:4px 14px;border:1px solid var(--red);color:var(--red);background:transparent;cursor:pointer;font-family:var(--ui);font-size:11px;letter-spacing:1px;">✕ REFUSER</button>
-      </div>
-    </div>`).join('');
+function refreshPendingRequests(){
+  const list=document.getElementById('pending-requests-list');if(!list)return;
+  const pending=players.filter(p=>p.status==='pending');
+  if(!pending.length){list.innerHTML='<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px;">Aucune demande en attente.</div>';updateDemandesBadge();return;}
+  list.innerHTML=pending.map(p=>`<div class="pending-request-card"><div class="pr-name">${esc(p.name)}</div><div class="pr-meta">RSI : ${esc(p.rsi_handle||'—')} &nbsp;·&nbsp; <a href="${esc(p.rsi)}" target="_blank" style="color:var(--blue);">Voir profil RSI ↗</a></div><div class="pr-actions"><select id="role-select-${p.id}" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--ui);font-size:12px;padding:5px 8px;">${ROLES.map(r=>`<option value="${r}">${r}</option>`).join('')}</select><button onclick="approvePlayer('${p.id}')" style="padding:4px 14px;border:1px solid var(--green);color:var(--green);background:transparent;cursor:pointer;font-family:var(--ui);font-size:11px;">✓ ACCEPTER</button><button onclick="rejectPlayer('${p.id}')" style="padding:4px 14px;border:1px solid var(--red);color:var(--red);background:transparent;cursor:pointer;font-family:var(--ui);font-size:11px;">✕ REFUSER</button></div></div>`).join('');
   updateDemandesBadge();
 }
 
-async function approvePlayer(pid) {
-  const p=players.find(x=>x.id===pid); if(!p) return;
+async function approvePlayer(pid){
+  const p=players.find(x=>x.id===pid);if(!p)return;
   const role=document.getElementById(`role-select-${pid}`)?.value||ROLES[0];
-  p.status='approved'; p.role=role; p.approvedAt=new Date().toISOString();
-  await DB.set('uex-players',players);
-  refreshPendingRequests(); renderPlayerList();
+  p.status='approved';p.role=role;p.approvedAt=new Date().toISOString();
+  await DB.set('uex-players',players);refreshPendingRequests();renderPlayerList();
   toast('Joueur accepté',`${p.name} — rôle ${role}.`,'success');
   pushLog('system','Système',`✅ ${p.name} accepté dans TELOS (rôle: ${role})`);
 }
 
-async function rejectPlayer(pid) {
+async function rejectPlayer(pid){
   const p=players.find(x=>x.id===pid);
-  if (!p||!confirm(`Refuser la demande de "${p.name}" ?`)) return;
-  p.status='rejected'; p.rejectedAt=new Date().toISOString();
-  await DB.set('uex-players',players);
-  refreshPendingRequests();
+  if(!p||!confirm(`Refuser la demande de "${p.name}" ?`))return;
+  p.status='rejected';p.rejectedAt=new Date().toISOString();
+  await DB.set('uex-players',players);refreshPendingRequests();
   toast('Demande refusée',p.name,'info');
   pushLog('system','Système',`❌ Demande de ${p.name} refusée`);
 }
 
-function updateDemandesBadge() {
-  const badge=document.getElementById('demandes-badge'); if(!badge) return;
+function updateDemandesBadge(){
+  const badge=document.getElementById('demandes-badge');if(!badge)return;
   const count=players.filter(p=>p.status==='pending').length;
-  if (count>0) { badge.textContent=count; badge.style.display='inline'; }
-  else { badge.style.display='none'; }
+  if(count>0){badge.textContent=count;badge.style.display='inline';}else{badge.style.display='none';}
 }
+
 
 function showErr(id,msg){ document.getElementById(id).textContent=msg; document.getElementById(id).classList.add('show'); }
 
@@ -8698,7 +8612,6 @@ async function init(){
   FULL_LOGS_DATA = (await DB.get('telos-logs')) || [];
   renderTopRes(); renderPrices(); renderActivity(); renderSysLogs(); renderFullLogs();
   renderCommerce();
-  // La landing est affichée par défaut — elle sera masquée si session active après chargement
   await loadMissions();
   await loadRessourceCatalogue();
   await loadArmurieCatalogue();
@@ -8712,18 +8625,15 @@ async function init(){
   setInterval(fluctuate,8500);
   // Load players from persistent storage
   players=(await DB.get('uex-players'))||[];
-  // Migration : supprimer les avatars URL http + ajouter status approved aux joueurs existants
-  var _avatarFixed = false;
-  players.forEach(p => {
-    if (p.avatar && (p.avatar.startsWith('http://') || p.avatar.startsWith('https://'))) {
-      p.avatar = null; _avatarFixed = true;
-    }
-    if (!p.status) { p.status = 'approved'; _avatarFixed = true; }
+  var _avatarFixed=false;
+  players.forEach(p=>{
+    if(p.avatar&&(p.avatar.startsWith('http://')||p.avatar.startsWith('https://'))){p.avatar=null;_avatarFixed=true;}
+    if(!p.status){p.status='approved';_avatarFixed=true;}
   });
-  if (_avatarFixed) await DB.set('uex-players', players);
+  if(_avatarFixed) await DB.set('uex-players',players);
   await loadRolesConfig();
-  updateDemandesBadge && updateDemandesBadge();
-  updateNavBanque && updateNavBanque();
+  updateDemandesBadge&&updateDemandesBadge();
+  updateNavBanque&&updateNavBanque();
   await loadBankData();
   renderHubBankStats();
   renderPlayerList();
@@ -8744,10 +8654,7 @@ async function init(){
   requestAnimationFrame(loop);
   renderAuthBar();
   startAutoSave();
-  // Masquer la landing si déjà connecté, sinon la laisser visible
-  if (SESSION) {
-    if (typeof hideLanding === 'function') hideLanding();
-  }
+  if(SESSION){if(typeof hideLanding==='function')hideLanding();}
   setTimeout(()=>toast('UEE NETWORK ONLINE','Synchronisation sécurisée établie.','success'),600);
   setTimeout(()=>toast('⚠ 3 alertes actives','Consultez le panneau Alertes.','warn'),1800);
 }
@@ -9205,6 +9112,11 @@ async function saveBankTransaction() {
   toast(_bankEditId?'Transaction modifiée':'Transaction enregistrée', desc, 'success');
   _bankEditId = null;
 }
+
+
+
+
+
 
 
 
