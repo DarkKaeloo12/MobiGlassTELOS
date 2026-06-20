@@ -150,7 +150,7 @@ function setSession(player) {
   if (typeof hideLanding === 'function') hideLanding();
   renderAuthBar();
   // Afficher l'onglet RESSOURCES si Admin/Gestionnaire
-  pushLog('system', 'SYSTEM', `Connexion établie : ${player.name} — Accès TELOS ${player.isAdmin?'ADMIN':'standard'}.`);
+  pushLog('system', 'SYSTEM', `Connexion établie : ${player.name} — Accès NEXORA ${player.isAdmin?'ADMIN':'standard'}.`);
   if(document.getElementById('panel-stocks').classList.contains('active')) renderStocksFromPlayers();
   renderMissions();
   updateNavRessources();
@@ -161,7 +161,7 @@ function setSession(player) {
   // Masquer la sidebar joueurs — l'onglet Stock est personnel
   const plSb = document.getElementById('pl-sidebar');
   if (plSb) plSb.style.display = 'none';
-  toast('Connexion établie', `Bienvenue, ${player.name} — Accès TELOS sécurisé.`, 'success');
+  toast('Connexion établie', `Bienvenue, ${player.name} — Accès NEXORA sécurisé.`, 'success');
   refreshStockPanel();
   // Recharger les blueprints cochés depuis la DB à chaque connexion
   loadPlayerOwnedBlueprints().then(() => renderBlueprints());
@@ -175,13 +175,13 @@ function logout() {
   // Afficher login wall sur le panel actif si protégé
   const _apl = document.querySelector('.panel.active');
   if (_apl) { const _idl=_apl.id.replace('panel-',''); if(!PANELS_PUBLIC.includes(_idl)) showLoginWall(_apl, _idl); }
-  pushLog('system', 'SYSTEM', 'Session TELOS fermée — déconnexion utilisateur.');
+  pushLog('system', 'SYSTEM', 'Session NEXORA fermée — déconnexion utilisateur.');
   renderMissions();
   updateNavRessources && updateNavRessources();
   updateNavBanque && updateNavBanque();
   const _sb = document.querySelector('.pl-sidebar');
   if (_sb) _sb.style.display = '';
-  toast('Déconnexion', 'Session TELOS fermée.', 'info');
+  toast('Déconnexion', 'Session NEXORA fermée.', 'info');
   setTimeout(() => { if (typeof showLanding === 'function') showLanding(); }, 300);
 }
 
@@ -1228,7 +1228,7 @@ function centerMap() { mapScale=1; mapOffX=0; mapOffY=0; }
    PROFIT CHART
 ════════════════════════════════════════════════════════════ */
 /* ════════════════════════════════════════════════════════════
-   PROFIT HISTORY — Suivi dynamique valeur stock TELOS
+   PROFIT HISTORY — Suivi dynamique valeur stock NEXORA
 ════════════════════════════════════════════════════════════ */
 var PROFIT_HISTORY = []; // [{ts: timestamp, value: aUEC}]
 var chartDays = 7;
@@ -1917,7 +1917,7 @@ async function renderStocksFromPlayers() {
     if (telosBody) telosBody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:40px;color:var(--text-dim);">
       <div style="font-size:28px;margin-bottom:12px;opacity:0.3;">🔒</div>
       <div style="font-size:13px;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">Accès restreint</div>
-      <div style="font-size:12px;opacity:0.7;margin-bottom:16px;">Connectez-vous pour consulter les stocks du réseau TELOS.</div>
+      <div style="font-size:12px;opacity:0.7;margin-bottom:16px;">Connectez-vous pour consulter les stocks du réseau NEXORA.</div>
       <button onclick="openLoginModal()" style="padding:7px 18px;border:1px solid var(--orange);background:var(--orange-faint);color:var(--orange);font-family:var(--ui);font-size:12px;letter-spacing:2px;cursor:pointer;text-transform:uppercase;">⬡ CONNEXION CORPO</button>
     </td></tr>`;
     if (telosFooter) telosFooter.innerHTML = '';
@@ -2598,7 +2598,7 @@ var MODALS = {
         const n = r.name || r;
         if (n && !allRes.includes(n)) allRes.push(n);
       });
-      // Fallback : ressources du stock TELOS si catalogue vide
+      // Fallback : ressources du stock NEXORA si catalogue vide
       if (!allRes.length && window._telosGroups) {
         Object.values(window._telosGroups).forEach(function(g) { allRes.push(g.name); });
       }
@@ -3875,7 +3875,7 @@ function renderCommandes() {
           }
           if(canEditCommande(c))
           _s+='<button data-action="cmd-edit"   data-id="'+c.id+'" style="'+S+'1px solid var(--orange);color:var(--orange);background:transparent;">✏</button>';
-          _s+='<button data-action="cmd-check"  data-id="'+c.id+'" title="Vérifier le stock TELOS" style="'+S+'1px solid rgba(89,208,255,0.5);color:#59d0ff;background:transparent;">📦</button>';
+          _s+='<button data-action="cmd-check"  data-id="'+c.id+'" title="Vérifier le stock NEXORA" style="'+S+'1px solid rgba(89,208,255,0.5);color:#59d0ff;background:transparent;">📦</button>';
           _s+='<button data-action="cmd-delete" data-id="'+c.id+'" title="Supprimer" style="'+S+'1px solid rgba(255,68,68,0.5);color:var(--red);background:transparent;">🗑</button>';
           return _s;
         })()}
@@ -4366,7 +4366,7 @@ async function refreshAllObjStockInfo() {
 async function checkStockForCommande(cmd) {
   if (!cmd.resources || !cmd.resources.length) return;
 
-  // ── 1. Agréger stock TELOS utilisable (sans les ressources 'vente' <500) ──
+  // ── 1. Agréger stock NEXORA utilisable (sans les ressources 'vente' <500) ──
   const telosStock = {};
   for (const p of players) {
     const stocks = (await DB.get('uex-stocks-' + p.id)) || [];
@@ -4510,14 +4510,14 @@ async function notifyDiscord(commande, event) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        username: 'MobiGlass Telos',
+        username: 'NEXORA',
         avatar_url: 'https://media.alienwarearena.com/media/00825a3ff4d68867c811e8e36c2e828b.png?quality=75&width=184',
         embeds: [{
           title,
           description: desc,
           color,
           fields,
-          footer: { text: `MobiGlass Telos • ${new Date().toLocaleDateString('fr-FR', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}` },
+          footer: { text: `NEXORA • ${new Date().toLocaleDateString('fr-FR', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}` },
           thumbnail: { url: 'https://media.alienwarearena.com/media/00825a3ff4d68867c811e8e36c2e828b.png?quality=75&width=184' }
         }]
       })
@@ -4592,7 +4592,7 @@ async function syncObjectifsWithStock() {
   });
   if (!activeObjs.length) return;
 
-  // Agréger tout le stock TELOS par bucket de qualité
+  // Agréger tout le stock NEXORA par bucket de qualité
   const telosStockByBucket = {}; // key → { aucune, vente, vaisseau, fps }
   for (const p of players) {
     const stocks = (await DB.get('uex-stocks-' + p.id)) || [];
@@ -4727,7 +4727,7 @@ async function checkCmdStock(id) {
   const summary = allOk
     ? 'Stock suffisant !'
     : (created > 0 ? created + ' objectif(s) cree(s) pour les ressources manquantes.' : 'Objectifs deja existants.');
-  alert('Stock TELOS — ' + comm.title + '\n\n' + lines.join('\n') + '\n\n' + summary);
+  alert('Stock NEXORA — ' + comm.title + '\n\n' + lines.join('\n') + '\n\n' + summary);
   toast(allOk ? 'Stock OK' : 'Ressources manquantes', summary, allOk ? 'success' : 'warn');
 }
 
@@ -5534,7 +5534,7 @@ function showLoginWall(panelEl, id) {
     <div style="font-size:52px;opacity:0.15;">${icon}</div>
     <div style="font-size:11px;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;">Accès restreint</div>
     <div style="font-size:13px;color:var(--text-dim);text-align:center;max-width:300px;line-height:1.6;">
-      Connectez-vous pour accéder à cet espace du réseau TELOS.
+      Connectez-vous pour accéder à cet espace du réseau NEXORA.
     </div>
     <button onclick="openLoginModal(null,()=>goPanel('${id}'))"
       style="padding:10px 28px;border:1px solid var(--orange);background:rgba(247,140,30,0.08);color:var(--orange);font-family:var(--ui);font-size:11px;letter-spacing:2px;cursor:pointer;">
@@ -5732,7 +5732,7 @@ async function verifyRsiMembership(){
 
 async function notifyDiscordNewRequest(p){
   const webhook=await DB.get('telos-discord-webhook');if(!webhook)return;
-  try{await fetch(webhook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({embeds:[{title:"📥 Nouvelle demande d'accès — MobiGlass TELOS",color:0xf78c1e,fields:[{name:'Pseudo',value:p.name,inline:true},{name:'RSI Handle',value:p.rsi_handle||'—',inline:true},{name:'Profil RSI',value:p.rsi,inline:false}],footer:{text:'MobiGlass TELOS'},timestamp:new Date().toISOString()}]})});}catch(e){}
+  try{await fetch(webhook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({embeds:[{title:"📥 Nouvelle demande d'accès — NEXORA",color:0xf78c1e,fields:[{name:'Pseudo',value:p.name,inline:true},{name:'RSI Handle',value:p.rsi_handle||'—',inline:true},{name:'Profil RSI',value:p.rsi,inline:false}],footer:{text:'NEXORA'},timestamp:new Date().toISOString()}]})});}catch(e){}
 }
 
 function showTotpSetup(player){
@@ -5744,7 +5744,7 @@ function showTotpSetup(player){
   const cleanSecret=secret.replace(/=+$/,'');
   document.getElementById('totp-secret-display').textContent=`Clé manuelle : ${cleanSecret.match(/.{1,4}/g).join(' ')}`;
   const qrEl=document.getElementById('totp-qrcode');qrEl.innerHTML='';
-  const otpUrl=`otpauth://totp/MobiGlass%20TELOS:${encodeURIComponent(player.name)}?secret=${cleanSecret}&issuer=MobiGlass%20TELOS&algorithm=SHA1&digits=6&period=30`;
+  const otpUrl=`otpauth://totp/NEXORA:${encodeURIComponent(player.name)}?secret=${cleanSecret}&issuer=NEXORA&algorithm=SHA1&digits=6&period=30`;
   new QRCode(qrEl,{text:otpUrl,width:160,height:160,colorDark:'#000',colorLight:'#fff'});
   document.querySelectorAll('#reg-step-3 .totp-digit-input').forEach(i=>i.value='');
 }
@@ -5763,7 +5763,7 @@ function showTotpSetupModal(player){
   }
   document.getElementById('totp-modal-secret').textContent=`Clé manuelle : ${cleanSecret.match(/.{1,4}/g).join(' ')}`;
   const qrEl=document.getElementById('totp-modal-qrcode');qrEl.innerHTML='';
-  const otpUrl=`otpauth://totp/MobiGlass%20TELOS:${encodeURIComponent(player.name)}?secret=${cleanSecret}&issuer=MobiGlass%20TELOS&algorithm=SHA1&digits=6&period=30`;
+  const otpUrl=`otpauth://totp/NEXORA:${encodeURIComponent(player.name)}?secret=${cleanSecret}&issuer=NEXORA&algorithm=SHA1&digits=6&period=30`;
   new QRCode(qrEl,{text:otpUrl,width:160,height:160,colorDark:'#000',colorLight:'#fff'});
   document.querySelectorAll('.totp-modal-digit').forEach(i=>i.value='');
   document.getElementById('totp-modal-err').textContent='';
@@ -9119,6 +9119,25 @@ async function saveBankTransaction() {
   toast(_bankEditId?'Transaction modifiée':'Transaction enregistrée', desc, 'success');
   _bankEditId = null;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
