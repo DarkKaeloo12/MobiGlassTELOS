@@ -166,7 +166,7 @@ function setSession(player) {
   // Recharger les blueprints cochés depuis la DB à chaque connexion
   loadPlayerOwnedBlueprints().then(() => renderBlueprints());
   setTimeout(()=>{ const _ap=document.querySelector('.panel.active'); if(_ap){ const _id=_ap.id.replace('panel-',''); if(!PANELS_PUBLIC.includes(_id)) goPanel(_id); }}, 50);
-  if(!player.totp_secret){setTimeout(()=>showTotpSetupModal(player),800);}
+
 }
 
 function logout() {
@@ -369,14 +369,7 @@ async function doLogin() {
   if(player.status==='rejected'){err.textContent='❌ Votre demande a été refusée.';return;}
   const hash=await sha256(code);
   if(hash!==player.codeHash){err.textContent='⚠ Mot de passe incorrect.';return;}
-  if(!player.totp_secret){setSession(player);closeLoginModal();if(_loginTarget?.action)_loginTarget.action();return;}
-  _loginPendingPlayer=player;
-  document.getElementById('login-step-1').style.display='none';
-  document.getElementById('login-step-2').style.display='';
-  document.getElementById('login-totp-name').textContent=player.name;
-  document.querySelectorAll('#login-step-2 .totp-digit-input').forEach(i=>i.value='');
-  document.getElementById('login-totp-err').textContent='';
-  setTimeout(()=>document.querySelector('#login-step-2 .totp-digit-input').focus(),100);
+  setSession(player);closeLoginModal();if(_loginTarget?.action)_loginTarget.action();
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -9119,40 +9112,5 @@ async function saveBankTransaction() {
   toast(_bankEditId?'Transaction modifiée':'Transaction enregistrée', desc, 'success');
   _bankEditId = null;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
