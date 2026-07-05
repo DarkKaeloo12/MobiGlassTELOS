@@ -185,7 +185,7 @@ function logout() {
   const _sb = document.querySelector('.pl-sidebar');
   if (_sb) _sb.style.display = '';
   toast('Déconnexion', 'Session NEXORA fermée.', 'info');
-  setTimeout(() => { if (typeof showLanding === 'function') showLanding(); }, 300);
+  setTimeout(() => { window.location.href = './landing.html'; }, 300);
 }
 
 
@@ -351,4 +351,3 @@ async function doLogin() {
 /* ── Chargement depuis données embarquées + localStorage ── */
 /* ── Export HTML avec données intégrées ── */
 /* ── Auto-sauvegarde toutes les 5 minutes ── */
-
