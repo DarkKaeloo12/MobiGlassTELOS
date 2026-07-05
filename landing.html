@@ -16,7 +16,7 @@ canvas#bg{position:absolute;inset:0;width:100%;height:100%;z-index:0;}
 .scanline{position:absolute;top:0;left:0;width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(247,160,20,.25),transparent);z-index:10;animation:scan 7s linear infinite;pointer-events:none;}
 @keyframes scan{0%{top:-1px}100%{top:100%}}
 .hub-wrap{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;}
-.hub-svg{width:700px;max-width:96vw;}
+.hub-svg{width:min(620px,58vh);max-width:92vw;}
 .node{cursor:pointer;transition:opacity .2s;}
 .node:hover{opacity:.8;}
 /* Calque 3D ombre bleue décalée */
@@ -46,7 +46,7 @@ canvas#bg{position:absolute;inset:0;width:100%;height:100%;z-index:0;}
 .scanline{position:absolute;top:0;left:0;width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(247,160,20,.25),transparent);z-index:10;animation:scan 7s linear infinite;pointer-events:none;}
 @keyframes scan{0%{top:-1px}100%{top:100%}}
 .hub-wrap{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;}
-.hub-svg{width:700px;max-width:96vw;}
+.hub-svg{width:min(620px,58vh);max-width:92vw;}
 
 .landing-page { min-height:100vh; display:flex; flex-direction:column; }
 @keyframes lp-bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(6px)} }
@@ -270,7 +270,7 @@ canvas#bg{position:absolute;inset:0;width:100%;height:100%;z-index:0;}
 </svg>
 
 
-    <div id="status">▸ NEXORA INTERFACE — SYSTÈME OPÉRATIONNEL</div>
+    <div id="status" style="margin-top:2px;">▸ NEXORA INTERFACE — SYSTÈME OPÉRATIONNEL</div>
 
     <!-- Infos système -->
     <div style="margin-top:16px;font-family:'Share Tech Mono',monospace;font-size:11.0px;letter-spacing:3px;color:rgba(247,140,30,.45);display:flex;align-items:center;gap:8px;">
@@ -282,7 +282,7 @@ canvas#bg{position:absolute;inset:0;width:100%;height:100%;z-index:0;}
     </div>
 
     <!-- Séparateur haut -->
-    <div style="margin-top:12px;width:260px;display:flex;align-items:center;gap:8px;">
+    <div style="margin-top:8px;width:260px;display:flex;align-items:center;gap:8px;">
       <div style="flex:1;height:1px;background:rgba(247,140,30,.25);"></div>
       <div style="width:4px;height:4px;background:rgba(247,140,30,.5);transform:rotate(45deg);"></div>
       <div style="flex:1;height:1px;background:rgba(247,140,30,.25);"></div>
@@ -290,8 +290,8 @@ canvas#bg{position:absolute;inset:0;width:100%;height:100%;z-index:0;}
 
     <!-- Bouton CONNEXION — parallélogramme avec coins coupés -->
     <button onclick="handleLogin()" style="
-      margin-top:14px;
-      width:260px;height:46px;
+      margin-top:10px;
+      width:260px;height:44px;
       background:#e8930a;
       border:none;
       clip-path:polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
