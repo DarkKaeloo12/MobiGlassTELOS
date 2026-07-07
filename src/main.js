@@ -2879,56 +2879,77 @@ async function clearArmurieCatalogue() {
 }
 
 async function importBlueprintsToArmurieData() {
-  const BP_ARMURE   = ['Helmet','Chest','Arms','Legs','Undersuit','Backpack','Core','Suit','Glove','Boot'];
-  const BP_ARME_VAI = ['Cannon','Gun','Laser','Missile','Torpedo','Turret','Repeater','Distortion','Neutron','Ballistic','Beam','Scattergun'];
-
-  function classifyBP(bp) {
-    const n = (bp.name || '').toLowerCase();
-    const cat = (bp.cat || '').toLowerCase();
-    if (cat === 'fps') {
-      if (BP_ARMURE.some(k => n.includes(k.toLowerCase()))) return 'armor';
-      return 'fps';
-    }
-    if (cat === 'vaisseau' || cat === 'ship') {
-      if (BP_ARME_VAI.some(k => n.includes(k.toLowerCase()))) return 'shipwep';
-      return 'shipcomp';
-    }
-    if (cat === 'composant') return 'shipcomp';
-    return 'fps';
-  }
+  // Mapping direct depuis la catégorie réelle du blueprint (fiable, choisie par l'utilisateur)
+  // vers l'onglet du catalogue Armurie — plus de devinette par mots-clés.
+  const BP_CAT_TO_TAB = {
+    fps:        'fps',
+    armor:      'armor',
+    vaisseau:   'shipwep',
+    composant:  'shipcomp',
+    industriel: 'shipcomp', // pas d'onglet dédié → rattaché aux composants vaisseau
+    autre:      'fps',
+  };
 
   const blueprints = (await DB.get('telos-blueprints')) || [];
   if (!blueprints.length) { toast('Aucun blueprint trouvé','','error'); return; }
 
   const existing = (await DB.get('telos-armurie-custom')) || [];
-  const existingNames = new Set(existing.map(x => (x.name||'').toLowerCase()));
+  const byName = new Map(existing.map(x => [(x.name||'').toLowerCase(), x]));
 
-  var added = 0;
   const now = new Date().toISOString();
+  var added = 0, updated = 0;
 
   blueprints.forEach(bp => {
     if (!bp.name) return;
-    if (existingNames.has(bp.name.toLowerCase())) return;
-    existing.push({
-      id:       'arm_bp_' + (bp.id || Date.now() + '_' + Math.random().toString(36).slice(2,5)),
-      name:     bp.name,
-      tab:      classifyBP(bp),
-      type:     '',
-      prix:     0,
-      loc:      '',
-      note:     'Blueprint' + (bp.craftTime ? ' · ' + bp.craftTime : ''),
-      fromBP:   true,
-      bpId:     bp.id,
-      addedAt:  now,
-    });
-    existingNames.add(bp.name.toLowerCase());
-    added++;
+    const tab = BP_CAT_TO_TAB[(bp.cat||'').toLowerCase()] || 'fps';
+
+    // Retranscrire toutes les infos disponibles du blueprint
+    const ingredientsList = (bp.ingredients||[])
+      .filter(i => i.name)
+      .map(i => `${i.name}${i.qty ? ' ×'+i.qty : ''}`)
+      .join(', ');
+    const noteParts = [];
+    if (bp.craftTime) noteParts.push('Craft : ' + bp.craftTime);
+    if (bp.level)     noteParts.push('Classe S' + bp.level);
+    if (ingredientsList) noteParts.push('Matériaux : ' + ingredientsList);
+    if (bp.notes)     noteParts.push(bp.notes);
+    const note = (noteParts.length ? noteParts.join(' · ') : 'Blueprint') ;
+
+    const key = bp.name.toLowerCase();
+    const prev = byName.get(key);
+
+    if (prev) {
+      // Déjà importé → on retranscrit/actualise les infos sans écraser un prix/lieu déjà saisis à la main
+      prev.tab      = tab;
+      prev.taille    = bp.level || prev.taille || '';
+      prev.note     = note;
+      prev.fromBP   = true;
+      prev.bpId     = bp.id;
+      updated++;
+    } else {
+      const entry = {
+        id:       'arm_bp_' + (bp.id || Date.now() + '_' + Math.random().toString(36).slice(2,5)),
+        name:     bp.name,
+        tab:      tab,
+        type:     'Blueprint',
+        taille:   bp.level || '',
+        prix:     0,
+        loc:      '',
+        note:     note,
+        fromBP:   true,
+        bpId:     bp.id,
+        addedAt:  now,
+      };
+      existing.push(entry);
+      byName.set(key, entry);
+      added++;
+    }
   });
 
   await DB.set('telos-armurie-custom', existing);
   ARMURIE_CATALOGUE = existing;
-  toast(added + ' items importés depuis les blueprints', '', 'success');
-  renderArmurieCatalogue();
+  toast((added+updated) + ' blueprints traités', added + ' ajoutés, ' + updated + ' mis à jour', 'success');
+  renderArmurie();
 }
 
 function setArmTab(tab, btn) {
