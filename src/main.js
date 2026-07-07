@@ -1867,7 +1867,7 @@ function renderFullLogs(){
    RENDER: STOCKS panel — alimenté par les stocks joueurs + données marché
 ════════════════════════════════════════════════════════════ */
 
-function catLbl(c){ return {mineral:'Minéraux',salvage:'Salvage',resources:'Ressources',equipment:'Équipements',weapons:'Armement',accessories:'Accessoires',other:'Autre'}[c]||c; }
+function catLbl(c){ return {mineral:'Minéraux',salvage:'Salvage',resources:'Ressources',equipment:'Équipements',weapons:'Armement',accessories:'Accessoires',composants:'Composants',other:'Autre'}[c]||c; }
 function catCls(c){ return 'cat-'+c; }
 function spark(r){
   const pts=Array.from({length:7},(_,i)=>(r.sell||1)*(0.95+Math.sin(i*2.3+(r.buy||0))*0.08));
@@ -2067,9 +2067,9 @@ async function renderStocksFromPlayers() {
     const mCls    = margin!==null?(margin>=0?'td-green':'td-red'):'';
     const key     = g.name.toLowerCase()+'|'+g.cat;
     const nb      = g.partners.length;
-    // Avatars des partenaires
+    // Noms des partenaires (remplace l'ancien système d'avatars images)
     const avatars = g.partners.slice(0,5).map(p=>
-      `<div title="${esc(p.player)}" style="width:22px;height:22px;background:var(--bg3);border:1px solid var(--orange);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--orange);font-weight:700;">${avHtml(players.find(x=>x.id===p.pid)||p.player,22)}</div>`
+      `<span title="${esc(p.player)}" style="padding:2px 7px;background:var(--bg3);border:1px solid var(--border);border-radius:3px;font-size:10px;color:var(--text-dim);white-space:nowrap;">${esc(p.player)}</span>`
     ).join('');
     const locs = [...new Set(g.partners.flatMap(p=>p.lines.map(l=>l.loc)))].filter(Boolean).join(', ');
 
