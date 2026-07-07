@@ -729,6 +729,7 @@ var players     = [];
 var selectedPid = null;
 var confirmCb   = null;
 var stockCat    = 'all';
+var stockSubTab = 'resource';
 var stockSort   = { k:'profit', d:-1 };
 
 /* ════════════════════════════════════════════════════════════
@@ -1867,7 +1868,7 @@ function renderFullLogs(){
    RENDER: STOCKS panel — alimenté par les stocks joueurs + données marché
 ════════════════════════════════════════════════════════════ */
 
-function catLbl(c){ return {mineral:'Minéraux',salvage:'Salvage',resources:'Ressources',equipment:'Équipements',weapons:'Armement',accessories:'Accessoires',composants:'Composants',other:'Autre'}[c]||c; }
+function catLbl(c){ return {mineral:'Minéraux',salvage:'Salvage',resources:'Ressources',equipment:'Équipements',weapons:'Armement',accessories:'Accessoires',other:'Autre',arme_fps:'Armes FPS',armure:'Armures',arme_vaisseau:'Armes Vaisseau',composant_vaisseau:'Composant Vaisseau'}[c]||c; }
 function catCls(c){ return 'cat-'+c; }
 function spark(r){
   const pts=Array.from({length:7},(_,i)=>(r.sell||1)*(0.95+Math.sin(i*2.3+(r.buy||0))*0.08));
@@ -1930,6 +1931,7 @@ async function renderStocksFromPlayers() {
       player:  p.name,
       name:    s.res,
       cat:     s.cat,
+      source:  'resource',
       qty:     Number(s.qty),
       buy:     Number(s.price)     || 0,
       sell:    Number(s.sellprice) || 0,
@@ -1945,6 +1947,7 @@ async function renderStocksFromPlayers() {
       player:  p.name,
       name:    s.name,
       cat:     s.cat || 'armurerie',
+      source:  'armory',
       qty:     Number(s.qty) || 1,
       buy:     Number(s.price)     || 0,
       sell:    Number(s.sellprice) || 0,
@@ -1982,7 +1985,7 @@ async function renderStocksFromPlayers() {
   }
 
   // ── Appliquer filtres sur lignes brutes ──
-  let filtered = rawRows;
+  let filtered = rawRows.filter(r=>r.source===stockSubTab);
   if (filterPlayer) filtered = filtered.filter(r=>r.pid===filterPlayer);
   if (cat!=='all')  filtered = filtered.filter(r=>r.cat===cat);
   if (search)       filtered = filtered.filter(r=>
@@ -2111,6 +2114,30 @@ async function renderStocksFromPlayers() {
 function renderStocks(){ renderStocksFromPlayers(); }
 function filterStocks(){ renderStocksFromPlayers(); }
 function filterCat(c,btn){ stockCat=c; document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); renderStocksFromPlayers(); }
+
+function setStockSubTab(tab, btn) {
+  stockSubTab = tab;
+  stockCat = 'all';
+  // Style des boutons de sous-onglet
+  document.querySelectorAll('.stock-tab-btn').forEach(b => {
+    b.style.borderColor = 'var(--border)';
+    b.style.color       = 'var(--text-dim)';
+    b.style.background  = 'transparent';
+  });
+  btn.style.borderColor = 'var(--orange)';
+  btn.style.color       = 'var(--orange)';
+  btn.style.background  = 'rgba(247,140,30,0.1)';
+  // Afficher le bon groupe de catégories, réinitialiser sur "Tous"
+  const resGrp = document.getElementById('stock-cats-resource');
+  const armGrp = document.getElementById('stock-cats-armory');
+  if (resGrp) resGrp.style.display = (tab==='resource') ? 'flex' : 'none';
+  if (armGrp) armGrp.style.display = (tab==='armory')   ? 'flex' : 'none';
+  document.querySelectorAll('#stock-cats-resource .filter-btn, #stock-cats-armory .filter-btn').forEach(b=>b.classList.remove('active'));
+  const grp = tab==='resource' ? resGrp : armGrp;
+  const firstBtn = grp?.querySelector('.filter-btn');
+  if (firstBtn) firstBtn.classList.add('active');
+  renderStocksFromPlayers();
+}
 function sortStocks(k){ stockSort.k===k?stockSort.d*=-1:(stockSort={k,d:-1}); renderStocksFromPlayers(); }
 
 /* ════════════════════════════════════════════════════════════

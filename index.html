@@ -316,6 +316,12 @@ function showLoginWall(){} // stub
         <!-- KPI bande -->
         <div id="telos-kpi" style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0;"></div>
 
+        <!-- Sous-onglets Ressources / Armurerie -->
+        <div style="display:flex;gap:6px;padding:0 12px;margin-top:8px;">
+          <button type="button" class="stock-tab-btn" onclick="setStockSubTab('resource',this)" style="padding:6px 16px;border:1px solid var(--orange);background:rgba(247,140,30,0.1);color:var(--orange);font-family:var(--ui);font-size:12px;letter-spacing:1px;cursor:pointer;text-transform:uppercase;">📦 Ressources</button>
+          <button type="button" class="stock-tab-btn" onclick="setStockSubTab('armory',this)" style="padding:6px 16px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-family:var(--ui);font-size:12px;letter-spacing:1px;cursor:pointer;text-transform:uppercase;">🛡 Armurerie</button>
+        </div>
+
         <!-- Toolbar filtres -->
         <div class="toolbar" style="flex-wrap:wrap;row-gap:6px;">
           <!-- Recherche -->
@@ -327,16 +333,25 @@ function showLoginWall(){} // stub
           <select class="form-input" id="telos-filter-player" style="padding:5px 8px;font-size: 12px;height:auto;width:auto;" onchange="renderStocksFromPlayers()">
             <option value="">👥 Tous les partenaires</option>
           </select>
-          <!-- Catégories -->
-          <button class="filter-btn active" onclick="filterCat('all',this)">Tous</button>
-          <button class="filter-btn" onclick="filterCat('mineral',this)">⛏ Minéraux</button>
-          <button class="filter-btn" onclick="filterCat('salvage',this)">🔧 Salvage</button>
-          <button class="filter-btn" onclick="filterCat('resources',this)">📦 Ressources</button>
-          <button class="filter-btn" onclick="filterCat('equipment',this)">🛡 Équipements</button>
-          <button class="filter-btn" onclick="filterCat('weapons',this)">🔫 Armement</button>
-          <button class="filter-btn" onclick="filterCat('accessories',this)">🔩 Accessoires</button>
-          <button class="filter-btn" onclick="filterCat('composants',this)">⚙ Composants</button>
-          <button class="filter-btn" onclick="filterCat('other',this)">○ Autre</button>
+          <!-- Catégories Ressources -->
+          <div id="stock-cats-resource" style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="filter-btn active" onclick="filterCat('all',this)">Tous</button>
+            <button class="filter-btn" onclick="filterCat('mineral',this)">⛏ Minéraux</button>
+            <button class="filter-btn" onclick="filterCat('salvage',this)">🔧 Salvage</button>
+            <button class="filter-btn" onclick="filterCat('resources',this)">📦 Ressources</button>
+            <button class="filter-btn" onclick="filterCat('equipment',this)">🛡 Équipements</button>
+            <button class="filter-btn" onclick="filterCat('weapons',this)">🔫 Armement</button>
+            <button class="filter-btn" onclick="filterCat('accessories',this)">🔩 Accessoires</button>
+            <button class="filter-btn" onclick="filterCat('other',this)">○ Autre</button>
+          </div>
+          <!-- Catégories Armurerie (masqué par défaut) -->
+          <div id="stock-cats-armory" style="display:none;gap:6px;flex-wrap:wrap;">
+            <button class="filter-btn active" onclick="filterCat('all',this)">Tous</button>
+            <button class="filter-btn" onclick="filterCat('arme_fps',this)">🔫 Armes FPS</button>
+            <button class="filter-btn" onclick="filterCat('armure',this)">🛡 Armures</button>
+            <button class="filter-btn" onclick="filterCat('arme_vaisseau',this)">🚀 Armes Vaisseau</button>
+            <button class="filter-btn" onclick="filterCat('composant_vaisseau',this)">🔧 Composant Vaisseau</button>
+          </div>
         </div>
 
         <!-- Tableau -->

@@ -268,7 +268,10 @@ a { color: inherit; text-decoration: none; }
 .cat-equipment   { background: rgba(0,255,163,0.10);   color: var(--green); }
 .cat-weapons     { background: rgba(255,68,68,0.12);   color: #ff6868; }
 .cat-accessories { background: rgba(220,100,255,0.10); color: var(--purple); }
-.cat-composants  { background: rgba(89,208,255,0.12);  color: #59d0ff; }
+.cat-arme_fps         { background: rgba(255,68,68,0.12);   color: #ff6868; }
+.cat-armure           { background: rgba(0,255,163,0.10);   color: var(--green); }
+.cat-arme_vaisseau    { background: rgba(255,68,68,0.12);   color: #ff6868; }
+.cat-composant_vaisseau { background: rgba(89,208,255,0.12); color: #59d0ff; }
 .cat-other       { background: rgba(180,180,180,0.10); color: #aaa; }
 /* Anciennes catégories (compatibilité données existantes) */
 .cat-metal       { background: rgba(100,180,255,0.12); color: var(--blue); }
