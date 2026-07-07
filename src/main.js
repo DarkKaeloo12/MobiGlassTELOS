@@ -145,12 +145,13 @@ function updateAllNav() {
   if (elInsc) elInsc.style.display = SESSION ? 'none' : '';
 }
 
-function setSession(player) {
+function setSession(player, silent) {
   SESSION = { pid: player.id, name: player.name, isAdmin: player.isAdmin||false };
+  try { localStorage.setItem('nexora_session', JSON.stringify({ pid: player.id, ts: Date.now() })); } catch(e){}
   if (typeof hideLanding === 'function') hideLanding();
   renderAuthBar();
   // Afficher l'onglet RESSOURCES si Admin/Gestionnaire
-  pushLog('system', 'SYSTEM', `Connexion établie : ${player.name} — Accès NEXORA ${player.isAdmin?'ADMIN':'standard'}.`);
+  if (!silent) pushLog('system', 'SYSTEM', `Connexion établie : ${player.name} — Accès NEXORA ${player.isAdmin?'ADMIN':'standard'}.`);
   if(document.getElementById('panel-stocks').classList.contains('active')) renderStocksFromPlayers();
   renderMissions();
   updateNavRessources();
@@ -161,16 +162,17 @@ function setSession(player) {
   // Masquer la sidebar joueurs — l'onglet Stock est personnel
   const plSb = document.getElementById('pl-sidebar');
   if (plSb) plSb.style.display = 'none';
-  toast('Connexion établie', `Bienvenue, ${player.name} — Accès NEXORA sécurisé.`, 'success');
+  if (!silent) toast('Connexion établie', `Bienvenue, ${player.name} — Accès NEXORA sécurisé.`, 'success');
   refreshStockPanel();
   // Recharger les blueprints cochés depuis la DB à chaque connexion
   loadPlayerOwnedBlueprints().then(() => renderBlueprints());
-  setTimeout(()=>{ const _ap=document.querySelector('.panel.active'); if(_ap){ const _id=_ap.id.replace('panel-',''); if(!PANELS_PUBLIC.includes(_id)) goPanel(_id); }}, 50);
+  if (!silent) setTimeout(()=>{ const _ap=document.querySelector('.panel.active'); if(_ap){ const _id=_ap.id.replace('panel-',''); if(!PANELS_PUBLIC.includes(_id)) goPanel(_id); }}, 50);
 
 }
 
 function logout() {
   SESSION = null;
+  try { localStorage.removeItem('nexora_session'); } catch(e){}
   renderAuthBar();
   // Afficher login wall sur le panel actif si protégé
   const _apl = document.querySelector('.panel.active');
@@ -8672,6 +8674,17 @@ async function init(){
     if(!p.status){p.status='approved';_avatarFixed=true;}
   });
   if(_avatarFixed) await DB.set('uex-players',players);
+
+  // ── Restaurer la session après un refresh (évite la déconnexion systématique) ──
+  try {
+    const _saved = JSON.parse(localStorage.getItem('nexora_session')||'null');
+    if (_saved && _saved.pid) {
+      const _p = players.find(x=>x.id===_saved.pid && x.status==='approved');
+      if (_p) setSession(_p, true);
+      else localStorage.removeItem('nexora_session');
+    }
+  } catch(e) { try{ localStorage.removeItem('nexora_session'); }catch(e2){} }
+
   await loadRolesConfig();
   updateDemandesBadge&&updateDemandesBadge();
   updateNavBanque&&updateNavBanque();
