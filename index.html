@@ -1634,6 +1634,35 @@ function showLoginWall(){} // stub
   </div>
 </div>
 
+<!-- ══════════════ TRANSFER TO TELOS MODAL ══════════════ -->
+<div class="overlay" id="transfer-overlay" onclick="if(event.target===this)closeTransferModal()">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-head">
+      <span class="modal-title" id="transfer-title" style="color:var(--blue);">↔ Transférer vers Stock TELOS</span>
+      <button class="modal-close" onclick="closeTransferModal()">✕</button>
+    </div>
+    <div class="modal-body" style="gap:13px;">
+      <div class="form-field">
+        <label class="form-lbl">Ressource</label>
+        <div id="transfer-res-name" style="font-weight:700;color:var(--orange);padding:6px 0;font-size:14px;"></div>
+      </div>
+      <div class="form-field">
+        <label class="form-lbl">Qualité / lot à transférer</label>
+        <select class="form-input" id="transfer-quality-select" onchange="onTransferQualityChange()"></select>
+      </div>
+      <div class="form-field">
+        <label class="form-lbl">Quantité à transférer</label>
+        <input class="form-input" type="number" id="transfer-qty" min="1" step="1">
+        <div id="transfer-qty-max" style="font-size:11px;color:var(--text-dim);margin-top:3px;"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeTransferModal()">Annuler</button>
+      <button class="btn" style="border-color:var(--blue);color:var(--blue);letter-spacing:1px;" onclick="confirmTransferExecute()">↔ TRANSFÉRER</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════ EDIT ROLE MODAL ══════════════ -->
 <div class="overlay" id="role-overlay" onclick="if(event.target===this)closeEditRole()">
   <div class="modal" style="max-width:340px;">

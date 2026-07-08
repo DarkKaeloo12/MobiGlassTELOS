@@ -6326,7 +6326,7 @@ function renderPersoTable(stocks) {
       <td class="td-dim" style="font-size:10px;">${fmtDate(g.addedAt)}</td>
       <td style="display:flex;gap:4px;" onclick="event.stopPropagation()">
         <button class="btn sm" onclick="openEditPerso('${firstId}')" style="border-color:var(--orange);color:var(--orange);" title="Modifier">✏</button>
-        <button class="btn sm" onclick="confirmTransferPerso('${firstId}','${esc(g.res)}')" style="border-color:var(--blue);color:var(--blue);" title="Transférer vers Stock TELOS">↔</button>
+        <button class="btn sm" onclick="openTransferPerso('${gkey}')" style="border-color:var(--blue);color:var(--blue);" title="Transférer vers Stock TELOS">↔</button>
         <button class="btn danger sm" onclick="confirmDelPerso('${firstId}','${esc(g.res)}')" title="Supprimer">✕</button>
       </td>
     </tr>`;
@@ -7276,25 +7276,99 @@ function confirmDelPerso(sid, res) {
   );
 }
 
-function confirmTransferPerso(sid, res) {
-  showConfirm('↔ Transférer vers Stock TELOS',
-    `Transférer <strong style="color:var(--orange)">${res}</strong> du stock personnel vers le <strong>Stock TELOS</strong> (réseau) ?`,
-    async()=>{
-      let persoStocks = (await DB.get('uex-perso-'+selectedPid)) || [];
-      const item = persoStocks.find(s=>s.id===sid);
-      if (!item) return;
-      persoStocks = persoStocks.filter(s=>s.id!==sid);
-      await DB.set('uex-perso-'+selectedPid, persoStocks);
+var _transferCtx = null;
 
-      let telosStocks = (await DB.get('uex-stocks-'+selectedPid)) || [];
-      telosStocks.push({ ...item, id: 'st_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), addedAt: new Date().toISOString() });
-      await DB.set('uex-stocks-'+selectedPid, telosStocks);
+function openTransferPerso(gkey) {
+  const grp = window._sdpGroups?.[gkey];
+  if (!grp) return;
+  const entries = (_sdpPersoStocks||[]).filter(s=>grp.ids.includes(s.id));
+  if (!entries.length) return;
+  openTransferModal('resource', entries);
+}
 
-      renderPersoTable(persoStocks);
-      renderStocksFromPlayers();
-      toast('Ressource transférée', `${res} déplacé vers le Stock TELOS.`, 'success');
-    }
-  );
+function openTransferArmPerso(gkey) {
+  const grp = window._armGroups?.[gkey];
+  if (!grp) return;
+  const entries = (window._armPersoItems||[]).filter(s=>grp.ids.includes(s.id));
+  if (!entries.length) return;
+  openTransferModal('armory', entries);
+}
+
+function openTransferModal(type, entries) {
+  _transferCtx = { type, entries };
+  const first = entries[0];
+  const nameLabel = type==='resource' ? first.res : first.name;
+  document.getElementById('transfer-title').textContent =
+    type==='resource' ? '↔ Transférer vers Stock TELOS' : '↔ Transférer vers Armurerie TELOS';
+  document.getElementById('transfer-res-name').textContent = nameLabel;
+
+  const sel = document.getElementById('transfer-quality-select');
+  sel.innerHTML = entries.map((e,i) => {
+    const qLbl  = QUALITY_META[e.quality||'']?.label || 'Sans qualité';
+    const locTx = e.loc ? ' · ' + e.loc : '';
+    return `<option value="${i}">${qLbl} — ${e.qty} dispo${locTx}</option>`;
+  }).join('');
+  sel.selectedIndex = 0;
+  onTransferQualityChange();
+
+  document.getElementById('transfer-overlay').classList.add('open');
+}
+
+function onTransferQualityChange() {
+  const sel = document.getElementById('transfer-quality-select');
+  const entry = _transferCtx.entries[Number(sel.value)];
+  const qtyInput = document.getElementById('transfer-qty');
+  qtyInput.max = entry.qty;
+  qtyInput.value = entry.qty;
+  document.getElementById('transfer-qty-max').textContent = 'Maximum disponible : ' + entry.qty;
+}
+
+function closeTransferModal() {
+  document.getElementById('transfer-overlay').classList.remove('open');
+  _transferCtx = null;
+}
+
+async function confirmTransferExecute() {
+  if (!_transferCtx) return;
+  const sel   = document.getElementById('transfer-quality-select');
+  const entry = _transferCtx.entries[Number(sel.value)];
+  let qty = parseInt(document.getElementById('transfer-qty').value, 10);
+  if (!qty || qty < 1) { toast('Quantité invalide','Indiquez une quantité supérieure à 0.','error'); return; }
+  if (qty > entry.qty) qty = entry.qty;
+
+  if (_transferCtx.type === 'resource') {
+    let persoStocks = (await DB.get('uex-perso-'+selectedPid)) || [];
+    const src = persoStocks.find(s=>s.id===entry.id);
+    if (!src) { toast('Erreur','Entrée introuvable, réessayez.','error'); closeTransferModal(); return; }
+
+    let telosStocks = (await DB.get('uex-stocks-'+selectedPid)) || [];
+    telosStocks.push({ ...src, id:'st_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), qty, addedAt:new Date().toISOString() });
+
+    if (qty >= src.qty) persoStocks = persoStocks.filter(s=>s.id!==src.id);
+    else src.qty -= qty;
+
+    await DB.set('uex-perso-'+selectedPid, persoStocks);
+    await DB.set('uex-stocks-'+selectedPid, telosStocks);
+    renderPersoTable(persoStocks);
+    renderStocksFromPlayers();
+    toast('Ressource transférée', qty + '× ' + src.res + ' déplacé vers le Stock TELOS.', 'success');
+  } else {
+    let persoItems = (await DB.get('uex-armory-perso-'+_armSelectedPid)) || [];
+    const src = persoItems.find(s=>s.id===entry.id);
+    if (!src) { toast('Erreur','Entrée introuvable, réessayez.','error'); closeTransferModal(); return; }
+
+    let telosItems = (await DB.get('uex-armory-'+_armSelectedPid)) || [];
+    telosItems.push({ ...src, id:'arm_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), qty, addedAt:new Date().toISOString() });
+
+    if (qty >= (src.qty||1)) persoItems = persoItems.filter(s=>s.id!==src.id);
+    else src.qty -= qty;
+
+    await DB.set('uex-armory-perso-'+_armSelectedPid, persoItems);
+    await DB.set('uex-armory-'+_armSelectedPid, telosItems);
+    renderArmPersoTable(persoItems);
+    toast('Équipement transféré', qty + '× ' + src.name + " déplacé vers l'Armurerie TELOS.", 'success');
+  }
+  closeTransferModal();
 }
 
 /* Delete player */
@@ -7933,7 +8007,7 @@ async function renderArmPersoTable(items) {
       <td onclick="event.stopPropagation()">
         <div style="display:flex;gap:4px;">
           <button class="btn sm" onclick="openArmModal('${g.ids[0]}','perso')" style="border-color:var(--orange);color:var(--orange);">✏</button>
-          <button class="btn sm" onclick="confirmTransferArmPerso('${g.ids[0]}','${esc(g.name)}')" style="border-color:var(--blue);color:var(--blue);" title="Transférer vers Armurerie TELOS">↔</button>
+          <button class="btn sm" onclick="openTransferArmPerso('${gkey}')" style="border-color:var(--blue);color:var(--blue);" title="Transférer vers Armurerie TELOS">↔</button>
           <button class="btn danger sm" onclick="armPersoDelItem('${g.ids[0]}','${esc(g.name)}')">✕</button>
         </div>
       </td>
@@ -7958,25 +8032,7 @@ async function armPersoDelItem(sid, name) {
   );
 }
 
-function confirmTransferArmPerso(sid, name) {
-  showConfirm('↔ Transférer vers Armurerie TELOS',
-    `Transférer <strong style="color:var(--orange)">${name}</strong> de l'armurerie personnelle vers l'<strong>Armurerie TELOS</strong> (réseau) ?`,
-    async()=>{
-      let persoItems = (await DB.get('uex-armory-perso-'+_armSelectedPid)) || [];
-      const item = persoItems.find(s=>s.id===sid);
-      if (!item) return;
-      persoItems = persoItems.filter(s=>s.id!==sid);
-      await DB.set('uex-armory-perso-'+_armSelectedPid, persoItems);
 
-      let telosItems = (await DB.get('uex-armory-'+_armSelectedPid)) || [];
-      telosItems.push({ ...item, id: 'arm_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), addedAt: new Date().toISOString() });
-      await DB.set('uex-armory-'+_armSelectedPid, telosItems);
-
-      renderArmPersoTable(persoItems);
-      toast('Équipement transféré', `${name} déplacé vers l'Armurerie TELOS.`, 'success');
-    }
-  );
-}
 
 function backToArmList() {
   document.getElementById('arm-list-view').style.display = 'flex';
