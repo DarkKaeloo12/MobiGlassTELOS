@@ -173,6 +173,7 @@ function setSession(player, silent) {
 function logout() {
   SESSION = null;
   try { localStorage.removeItem('nexora_session'); } catch(e){}
+  try { getSB()?.auth.signOut(); } catch(e){}
   renderAuthBar();
   // Afficher login wall sur le panel actif si protégé
   const _apl = document.querySelector('.panel.active');
@@ -305,20 +306,10 @@ var _loginPendingPlayer = null;
 function openLoginModal(targetPid=null, afterAction=null) {
   _loginTarget = { pid: targetPid, action: afterAction };
   const overlay = document.getElementById('login-overlay');
-  const s1 = document.getElementById('login-step-1');
-  const s2 = document.getElementById('login-step-2');
-  if(s1) s1.style.display='';
-  if(s2) s2.style.display='none';
-  const ni = document.getElementById('login-name-input');
-  if(ni) ni.value='';
-  document.getElementById('login-code').value = '';
-  document.getElementById('login-err').textContent = '';
-  const te = document.getElementById('login-totp-err');
-  if(te) te.textContent='';
-  _loginPendingPlayer = null;
+  const err = document.getElementById('login-err');
+  if (err) err.textContent = '';
   overlay.style.display = '';
   overlay.classList.add('open');
-  setTimeout(()=>{ const el=document.getElementById('login-name-input'); if(el) el.focus(); else document.getElementById('login-code').focus(); }, 100);
 }
 
 function closeLoginModal() {
@@ -372,6 +363,76 @@ async function doLogin() {
   const hash=await sha256(code);
   if(hash!==player.codeHash){err.textContent='⚠ Mot de passe incorrect.';return;}
   setSession(player);closeLoginModal();if(_loginTarget?.action)_loginTarget.action();
+}
+
+/* ── Connexion Discord (remplace pseudo + mot de passe + TOTP) ── */
+function loginWithDiscord() {
+  const sb = getSB();
+  if (!sb) { toast('Erreur','Connexion Supabase indisponible.','error'); return; }
+  const err = document.getElementById('login-err');
+  if (err) err.textContent = '';
+  sb.auth.signInWithOAuth({
+    provider: 'discord',
+    options: { redirectTo: window.location.origin + window.location.pathname }
+  });
+}
+
+async function handleDiscordReturn() {
+  const sb = getSB();
+  if (!sb) return;
+  let session;
+  try {
+    const res = await sb.auth.getSession();
+    session = res?.data?.session;
+  } catch(e) { return; }
+  if (!session || !session.user) return;
+
+  const user = session.user;
+  const identity = (user.identities||[]).find(i=>i.provider==='discord');
+  const discordId = identity?.id || user.user_metadata?.provider_id || user.id;
+  const discordUsername = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.user_name || user.user_metadata?.custom_claims?.global_name || 'Discord User';
+  const discordAvatar = user.user_metadata?.avatar_url || null;
+
+  // 1) Déjà lié à un compte NEXORA ?
+  let player = players.find(p=>p.discordId===discordId);
+
+  // 2) Sinon, lien automatique par nom (un seul candidat correspondant, pas déjà lié à un autre Discord)
+  if (!player) {
+    const nameMatches = players.filter(p=>!p.discordId && (p.name||'').toLowerCase()===discordUsername.toLowerCase());
+    if (nameMatches.length === 1) {
+      player = nameMatches[0];
+      player.discordId = discordId;
+      player.discordUsername = discordUsername;
+      player.discordAvatar = discordAvatar;
+      await DB.set('uex-players', players);
+      pushLog('system','Système',`🔗 Discord "${discordUsername}" lié automatiquement à ${player.name}`);
+    }
+  }
+
+  // 3) Sinon, nouveau compte en attente — visible dans DEMANDES, un admin pourra soit l'accepter,
+  //    soit le lier manuellement à un compte existant si le nom Discord ne correspond pas.
+  if (!player) {
+    player = {
+      id: 'p_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+      name: discordUsername,
+      discordId, discordUsername, discordAvatar,
+      status: 'pending', isAdmin: false, role: ROLES[0],
+      addedAt: new Date().toISOString(),
+    };
+    players.push(player);
+    await DB.set('uex-players', players);
+    renderPlayerList&&renderPlayerList(); updateDemandesBadge&&updateDemandesBadge();
+    toast('Compte Discord enregistré', 'En attente de validation par un administrateur.', 'info');
+    return;
+  }
+
+  if (player.status==='pending')   { toast('Demande en attente','⏳ Votre demande est en attente de validation.','info'); return; }
+  if (player.status==='suspended') { toast('Accès suspendu','🔴 Contactez un Admin.','error'); return; }
+  if (player.status==='rejected')  { toast('Accès refusé','❌ Votre demande a été refusée.','error'); return; }
+
+  setSession(player);
+  closeLoginModal();
+  if (_loginTarget?.action) _loginTarget.action();
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -5879,8 +5940,46 @@ function refreshPendingRequests(){
   const list=document.getElementById('pending-requests-list');if(!list)return;
   const pending=players.filter(p=>p.status==='pending');
   if(!pending.length){list.innerHTML='<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px;">Aucune demande en attente.</div>';updateDemandesBadge();return;}
-  list.innerHTML=pending.map(p=>`<div class="pending-request-card"><div class="pr-name">${esc(p.name)}</div><div class="pr-meta">RSI : ${esc(p.rsi_handle||'—')} &nbsp;·&nbsp; <a href="${esc(p.rsi)}" target="_blank" style="color:var(--blue);">Voir profil RSI ↗</a></div><div class="pr-actions"><select id="role-select-${p.id}" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--ui);font-size:12px;padding:5px 8px;">${ROLES.map(r=>`<option value="${r}">${r}</option>`).join('')}</select><button onclick="approvePlayer('${p.id}')" style="padding:4px 14px;border:1px solid var(--green);color:var(--green);background:transparent;cursor:pointer;font-family:var(--ui);font-size:11px;">✓ ACCEPTER</button><button onclick="rejectPlayer('${p.id}')" style="padding:4px 14px;border:1px solid var(--red);color:var(--red);background:transparent;cursor:pointer;font-family:var(--ui);font-size:11px;">✕ REFUSER</button></div></div>`).join('');
+  list.innerHTML=pending.map(p=>{
+    const discordBadge = p.discordId ? `<span style="font-size:9px;color:#5865F2;border:1px solid #5865F2;padding:1px 6px;margin-left:6px;letter-spacing:1px;">DISCORD</span>` : '';
+    const metaLine = p.discordId
+      ? `Connecté via Discord — aucun compte NEXORA existant ne correspond à ce pseudo.`
+      : `RSI : ${esc(p.rsi_handle||'—')} &nbsp;·&nbsp; <a href="${esc(p.rsi)}" target="_blank" style="color:var(--blue);">Voir profil RSI ↗</a>`;
+    const linkUI = p.discordId ? `
+      <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <span style="font-size:10px;color:var(--text-dim);">Ou lier à un compte existant :</span>
+        <select id="link-select-${p.id}" style="flex:1;min-width:120px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--ui);font-size:11px;padding:4px 6px;">
+          <option value="">— choisir un joueur —</option>
+          ${players.filter(x=>x.status==='approved'&&x.id!==p.id).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}
+        </select>
+        <button onclick="linkPendingToExisting('${p.id}')" style="padding:4px 10px;border:1px solid var(--blue);color:var(--blue);background:transparent;cursor:pointer;font-family:var(--ui);font-size:11px;">🔗 LIER</button>
+      </div>` : '';
+    return `<div class="pending-request-card">
+      <div class="pr-name">${esc(p.name)}${discordBadge}</div>
+      <div class="pr-meta">${metaLine}</div>
+      <div class="pr-actions"><select id="role-select-${p.id}" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--ui);font-size:12px;padding:5px 8px;">${ROLES.map(r=>`<option value="${r}">${r}</option>`).join('')}</select><button onclick="approvePlayer('${p.id}')" style="padding:4px 14px;border:1px solid var(--green);color:var(--green);background:transparent;cursor:pointer;font-family:var(--ui);font-size:11px;">✓ ACCEPTER</button><button onclick="rejectPlayer('${p.id}')" style="padding:4px 14px;border:1px solid var(--red);color:var(--red);background:transparent;cursor:pointer;font-family:var(--ui);font-size:11px;">✕ REFUSER</button></div>
+      ${linkUI}
+    </div>`;
+  }).join('');
   updateDemandesBadge();
+}
+
+async function linkPendingToExisting(pendingId) {
+  const pending = players.find(x=>x.id===pendingId);
+  if (!pending) return;
+  const sel = document.getElementById(`link-select-${pendingId}`);
+  const targetId = sel?.value;
+  if (!targetId) { toast('Sélectionnez un joueur','Choisissez le compte à lier avant de valider.','error'); return; }
+  const target = players.find(x=>x.id===targetId);
+  if (!target) return;
+  target.discordId = pending.discordId;
+  target.discordUsername = pending.discordUsername;
+  target.discordAvatar = pending.discordAvatar;
+  players = players.filter(x=>x.id!==pendingId);
+  await DB.set('uex-players', players);
+  refreshPendingRequests(); renderPlayerList&&renderPlayerList(); updateDemandesBadge();
+  toast('Compte Discord associé', `Discord lié à ${target.name}.`, 'success');
+  pushLog('system','Système',`🔗 Discord de "${pending.name}" associé manuellement au compte existant ${target.name}`);
 }
 
 async function approvePlayer(pid){
@@ -8774,15 +8873,20 @@ async function init(){
   });
   if(_avatarFixed) await DB.set('uex-players',players);
 
-  // ── Restaurer la session après un refresh (évite la déconnexion systématique) ──
-  try {
-    const _saved = JSON.parse(localStorage.getItem('nexora_session')||'null');
-    if (_saved && _saved.pid) {
-      const _p = players.find(x=>x.id===_saved.pid && x.status==='approved');
-      if (_p) setSession(_p, true);
-      else localStorage.removeItem('nexora_session');
-    }
-  } catch(e) { try{ localStorage.removeItem('nexora_session'); }catch(e2){} }
+  // ── Retour de connexion Discord (prioritaire) ──
+  await handleDiscordReturn();
+
+  // ── Restaurer la session après un refresh (fallback, évite la déconnexion systématique) ──
+  if (!SESSION) {
+    try {
+      const _saved = JSON.parse(localStorage.getItem('nexora_session')||'null');
+      if (_saved && _saved.pid) {
+        const _p = players.find(x=>x.id===_saved.pid && x.status==='approved');
+        if (_p) setSession(_p, true);
+        else localStorage.removeItem('nexora_session');
+      }
+    } catch(e) { try{ localStorage.removeItem('nexora_session'); }catch(e2){} }
+  }
 
   await loadRolesConfig();
   updateDemandesBadge&&updateDemandesBadge();
