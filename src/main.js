@@ -6326,6 +6326,7 @@ function renderPersoTable(stocks) {
       <td class="td-dim" style="font-size:10px;">${fmtDate(g.addedAt)}</td>
       <td style="display:flex;gap:4px;" onclick="event.stopPropagation()">
         <button class="btn sm" onclick="openEditPerso('${firstId}')" style="border-color:var(--orange);color:var(--orange);" title="Modifier">✏</button>
+        <button class="btn sm" onclick="confirmTransferPerso('${firstId}','${esc(g.res)}')" style="border-color:var(--blue);color:var(--blue);" title="Transférer vers Stock TELOS">↔</button>
         <button class="btn danger sm" onclick="confirmDelPerso('${firstId}','${esc(g.res)}')" title="Supprimer">✕</button>
       </td>
     </tr>`;
@@ -7275,6 +7276,27 @@ function confirmDelPerso(sid, res) {
   );
 }
 
+function confirmTransferPerso(sid, res) {
+  showConfirm('↔ Transférer vers Stock TELOS',
+    `Transférer <strong style="color:var(--orange)">${res}</strong> du stock personnel vers le <strong>Stock TELOS</strong> (réseau) ?`,
+    async()=>{
+      let persoStocks = (await DB.get('uex-perso-'+selectedPid)) || [];
+      const item = persoStocks.find(s=>s.id===sid);
+      if (!item) return;
+      persoStocks = persoStocks.filter(s=>s.id!==sid);
+      await DB.set('uex-perso-'+selectedPid, persoStocks);
+
+      let telosStocks = (await DB.get('uex-stocks-'+selectedPid)) || [];
+      telosStocks.push({ ...item, id: 'st_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), addedAt: new Date().toISOString() });
+      await DB.set('uex-stocks-'+selectedPid, telosStocks);
+
+      renderPersoTable(persoStocks);
+      renderStocksFromPlayers();
+      toast('Ressource transférée', `${res} déplacé vers le Stock TELOS.`, 'success');
+    }
+  );
+}
+
 /* Delete player */
 function confirmDeletePlayer(pid,name){
   if (!SESSION) { openLoginModal(null, ()=>confirmDeletePlayer(pid,name)); return; }
@@ -7911,6 +7933,7 @@ async function renderArmPersoTable(items) {
       <td onclick="event.stopPropagation()">
         <div style="display:flex;gap:4px;">
           <button class="btn sm" onclick="openArmModal('${g.ids[0]}','perso')" style="border-color:var(--orange);color:var(--orange);">✏</button>
+          <button class="btn sm" onclick="confirmTransferArmPerso('${g.ids[0]}','${esc(g.name)}')" style="border-color:var(--blue);color:var(--blue);" title="Transférer vers Armurerie TELOS">↔</button>
           <button class="btn danger sm" onclick="armPersoDelItem('${g.ids[0]}','${esc(g.name)}')">✕</button>
         </div>
       </td>
@@ -7931,6 +7954,26 @@ async function armPersoDelItem(sid, name) {
       await DB.set('uex-armory-perso-'+_armSelectedPid, items);
       renderArmPersoTable(items);
       toast('Équipement supprimé','','success');
+    }
+  );
+}
+
+function confirmTransferArmPerso(sid, name) {
+  showConfirm('↔ Transférer vers Armurerie TELOS',
+    `Transférer <strong style="color:var(--orange)">${name}</strong> de l'armurerie personnelle vers l'<strong>Armurerie TELOS</strong> (réseau) ?`,
+    async()=>{
+      let persoItems = (await DB.get('uex-armory-perso-'+_armSelectedPid)) || [];
+      const item = persoItems.find(s=>s.id===sid);
+      if (!item) return;
+      persoItems = persoItems.filter(s=>s.id!==sid);
+      await DB.set('uex-armory-perso-'+_armSelectedPid, persoItems);
+
+      let telosItems = (await DB.get('uex-armory-'+_armSelectedPid)) || [];
+      telosItems.push({ ...item, id: 'arm_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), addedAt: new Date().toISOString() });
+      await DB.set('uex-armory-'+_armSelectedPid, telosItems);
+
+      renderArmPersoTable(persoItems);
+      toast('Équipement transféré', `${name} déplacé vers l'Armurerie TELOS.`, 'success');
     }
   );
 }
