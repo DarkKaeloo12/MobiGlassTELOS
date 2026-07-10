@@ -132,7 +132,14 @@ function showLoginWall(){} // stub
       <div class="n-icon">🏦</div>
       <div><div class="n-main">BANQUE</div><div class="n-sub">Trésorerie TELOS</div></div>
     </div>	
-	
+
+    <div class="nav-item" id="nav-logs" onclick="goPanel('logs',this)">
+      <div class="n-icon">≡</div>
+      <div><div class="n-main">LOGS</div><div class="n-sub">Historique système</div></div>
+    </div>
+
+	<div class="nav-divider"></div>
+
 	<div class="nav-item" id="nav-ressources" onclick="goToRessources(this)" style="display:none;">
       <div class="n-icon">◈</div>
       <div><div class="n-main">DATA RESSOURCE</div><div class="n-sub">Catalogue Corp</div></div>
@@ -143,12 +150,6 @@ function showLoginWall(){} // stub
       <div><div class="n-main">DATA ARMURIE</div><div class="n-sub">Catalogue Armement</div></div>
     </div>
 
-	<div class="nav-divider"></div>
-    <div class="nav-item" id="nav-logs" onclick="goPanel('logs',this)">
-      <div class="n-icon">≡</div>
-      <div><div class="n-main">LOGS</div><div class="n-sub">Historique système</div></div>
-    </div>
-	
     <div class="nav-item" onclick="openSettings()">
       <div class="n-icon">⚙</div>
       <div><div class="n-main">PARAMÈTRES</div><div class="n-sub">Configuration</div></div>
