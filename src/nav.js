@@ -1,6 +1,9 @@
 /* ════════════════════════════════════════════════════════════
    NAV — visibilité des onglets selon droits
    Module extrait de main.js — NEXORA / MobiGlass TELOS
+
+   Dépend de : SESSION (auth.js), hasDroit() et canManageRoles() (roles.js)
+   ⚠ roles.js doit être chargé AVANT ce fichier.
 ════════════════════════════════════════════════════════════ */
 
 // [source main.js:109] updateNavRessources
@@ -38,9 +41,12 @@ function updateAllNav() {
     }
   });
 
+  // Nav RÔLES & DROITS : réservé aux Admins/Gestionnaires (ou droit manage_roles),
+  // mais aussi accessible (onglet Sauvegarde seul) à qui a le droit backup
+  const elRD = document.getElementById('nav-roles-droits');
+  if (elRD) elRD.style.display = (SESSION && (canManageRoles() || hasDroit('backup'))) ? '' : 'none';
+
   // Inscription visible uniquement si non connecté
   const elInsc = document.getElementById('nav-inscription');
   if (elInsc) elInsc.style.display = SESSION ? 'none' : '';
 }
-
-

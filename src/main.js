@@ -92,8 +92,10 @@ function requireAuth(pid, callback) {
 }
 function canManageRoles() {
   if (!SESSION) return false;
+  if (SESSION.isAdmin) return true;
   const p = players.find(x => x.id === SESSION.pid);
-  return SESSION.isAdmin || p?.role === 'Gestionnaire';
+  if (!p) return false;
+  return ROLES_BASE[p.role] === 'gestionnaire' || hasDroit('manage_roles');
 }
 
 // Peut éditer une commande EN COURS : Admin, Gestionnaire ou Lead
@@ -139,6 +141,11 @@ function updateAllNav() {
       el.style.display = hasDroit(droit) ? '' : 'none';
     }
   });
+
+  // Nav RÔLES & DROITS : réservé aux Admins/Gestionnaires (ou droit manage_roles),
+  // mais aussi accessible (onglet Sauvegarde seul) à qui a le droit backup
+  const elRD = document.getElementById('nav-roles-droits');
+  if (elRD) elRD.style.display = (SESSION && (canManageRoles() || hasDroit('backup'))) ? '' : 'none';
 
   // Inscription visible uniquement si non connecté
   const elInsc = document.getElementById('nav-inscription');
@@ -5677,6 +5684,16 @@ function goPanel(id, el) {
   clearLoginWall(p);
 
   if (id==='map')      { setTimeout(()=>{ const c=document.getElementById('map-canvas-full'); if(c){const w=c.offsetWidth,h=c.offsetHeight;if(w>10&&h>10&&(c.width!==w||c.height!==h)){c.width=w;c.height=h;c._inited=false;}} }, 60); }
+  if (id==='roles-droits') {
+    const canRD = canManageRoles(), canBackup = hasDroit('backup');
+    if (!canRD && !canBackup) { toast('Accès refusé','Réservé aux Admins et Gestionnaires.','error'); goPanel('hub'); return; }
+    // Cacher les sous-onglets Rôle&Droit / Demandes pour un utilisateur qui n'a que le droit backup
+    const tRoles = document.getElementById('rd-tab-roles');
+    const tDemandes = document.getElementById('rd-tab-demandes');
+    if (tRoles) tRoles.style.display = canRD ? '' : 'none';
+    if (tDemandes) tDemandes.style.display = canRD ? '' : 'none';
+    switchRDTab(canRD ? 'roles' : 'backup');
+  }
   if (id==='joueurs')  { (async()=>renderGlobal())(); updateGlobalFilter(); }
   if (id==='inscription') { populateRegRoles(); }
   if (id==='stocks')   {
@@ -6001,9 +6018,11 @@ async function rejectPlayer(pid){
 }
 
 function updateDemandesBadge(){
-  const badge=document.getElementById('demandes-badge');if(!badge)return;
   const count=players.filter(p=>p.status==='pending').length;
-  if(count>0){badge.textContent=count;badge.style.display='inline';}else{badge.style.display='none';}
+  const badge=document.getElementById('demandes-badge');
+  if(badge){ if(count>0){badge.textContent=count;badge.style.display='inline';}else{badge.style.display='none';} }
+  const navBadge=document.getElementById('badge-roles-droits');
+  if(navBadge){ if(count>0){navBadge.textContent=count;navBadge.style.display='';}else{navBadge.style.display='none';} }
 }
 
 
@@ -6698,6 +6717,10 @@ var DEFAULT_DROITS = {
 // Couleurs personnalisées des rôles { roleName: '#rrggbb' }
 var ROLES_COLORS_CUSTOM = {};
 
+// Rôle de base ('membre' | 'gestionnaire') — découple le NOM affiché du rôle
+// de son niveau de pouvoir réel. Renommer un rôle ne casse plus les accès.
+var ROLES_BASE = {};
+
 async function loadRolesConfig() {
   try {
     const saved = await DB.get('telos-roles-config');
@@ -6706,6 +6729,7 @@ async function loadRolesConfig() {
       ROLES_CONFIG = saved.droits || null;
       ROLES_COLORS_CUSTOM = saved.colors || {};
       ROLES_INSCRIPTION_CONFIG = saved.inscription || {};
+      ROLES_BASE = saved.base || {};
     }
     if (!ROLES_CONFIG) ROLES_CONFIG = JSON.parse(JSON.stringify(DEFAULT_DROITS));
     // Initialiser la config inscription pour les rôles qui n'ont pas encore de valeur
@@ -6713,12 +6737,16 @@ async function loadRolesConfig() {
       if (!(r in ROLES_INSCRIPTION_CONFIG)) {
         ROLES_INSCRIPTION_CONFIG[r] = !ROLES_EXCLUS_INSCRIPTION.includes(r);
       }
+      // Rôle de base par défaut : "Gestionnaire" (nom historique) → gestionnaire, sinon membre
+      if (!(r in ROLES_BASE)) {
+        ROLES_BASE[r] = r === 'Gestionnaire' ? 'gestionnaire' : 'membre';
+      }
     });
   } catch(e) { ROLES_CONFIG = JSON.parse(JSON.stringify(DEFAULT_DROITS)); }
 }
 
 async function saveRolesConfig() {
-  await DB.set('telos-roles-config', { roles: ROLES, droits: ROLES_CONFIG, colors: ROLES_COLORS_CUSTOM, inscription: ROLES_INSCRIPTION_CONFIG });
+  await DB.set('telos-roles-config', { roles: ROLES, droits: ROLES_CONFIG, colors: ROLES_COLORS_CUSTOM, inscription: ROLES_INSCRIPTION_CONFIG, base: ROLES_BASE });
 }
 
 function hasDroit(droit) {
@@ -7723,22 +7751,21 @@ function openSettings() {
   }
   const recoverRes = document.getElementById('admin-recover-result');
   if (recoverRes) recoverRes.style.display = 'none';
-  // Onglet rôles visible seulement admin
-  const stabRoles=document.getElementById('stab-roles');
-  if(stabRoles) stabRoles.style.display=SESSION?.isAdmin?'':'none';
-  openSettingsTab('general');
 }
 
-function openSettingsTab(tab) {
-  ['general','demandes','roles','backup'].forEach(t=>{
-    const panel=document.getElementById('stab-panel-'+t);
-    const btn=document.getElementById('stab-'+t);
-    if(panel) panel.style.display = t===tab ? 'flex' : 'none';
-    if(btn){ btn.style.color=t===tab?'var(--text-bright)':'var(--text-dim)'; btn.style.borderBottomColor=t===tab?'var(--orange)':'transparent'; }
+// ── Panel distinct RÔLES & DROITS (sous-onglets Rôle&Droit / Demandes / Sauvegarde) ──
+function switchRDTab(tab, btn) {
+  if ((tab==='roles' || tab==='demandes') && !canManageRoles()) { toast('Accès refusé','Réservé aux Admins et Gestionnaires.','error'); return; }
+  if (tab==='backup' && !canManageRoles() && !hasDroit('backup')) { toast('Accès refusé','','error'); return; }
+  ['roles','demandes','backup'].forEach(t=>{
+    const content = document.getElementById('rd-content-'+t);
+    const tbtn = document.getElementById('rd-tab-'+t);
+    if (content) content.style.display = t===tab ? 'flex' : 'none';
+    if (tbtn) { tbtn.style.color = t===tab?'var(--text-bright)':'var(--text-dim)'; tbtn.style.borderBottomColor = t===tab?'var(--orange)':'transparent'; }
   });
-  if(tab==='roles') renderRolesDroitsPanel();
-  if(tab==='demandes') { if(!canManageRoles()) { openSettingsTab('general'); return; } refreshPendingRequests(); }
-  if(tab==='backup') { if(!hasDroit('backup') && !SESSION?.isAdmin) { openSettingsTab('general'); return; } refreshBackupList(); }
+  if (tab==='roles')    renderRolesDroitsPanel();
+  if (tab==='demandes') refreshPendingRequests();
+  if (tab==='backup')   refreshBackupList();
 }
 
 // ── Rendu du panneau Rôles & Droits ──
@@ -7767,11 +7794,16 @@ function renderRolesNameList() {
       ? 'border:1px solid var(--orange);color:var(--orange);background:rgba(247,140,30,0.1);'
       : 'border:1px solid var(--border);color:var(--text-dim);background:transparent;';
     const toggleIcon = inscrit ? '📋' : '🚫';
+    const base = ROLES_BASE[r] || 'membre';
     return `
-    <div style="display:grid;grid-template-columns:1fr 38px auto auto auto auto;gap:6px;align-items:center;">
+    <div style="display:grid;grid-template-columns:1fr 100px 38px auto auto auto auto;gap:6px;align-items:center;">
       <input class="form-input" type="text" value="${r}" data-role-idx="${i}"
         style="padding:6px 9px;font-size:12px;border-left:3px solid ${col};"
-        oninput="ROLES[${i}]=this.value; syncDroitsRoleKey(${i}, this.value);">
+        oninput="const _old=ROLES[${i}]; ROLES[${i}]=this.value; syncDroitsRoleKey(${i}, _old, this.value);">
+      <select class="form-input" title="Rôle de base — détermine les pouvoirs d'administration réels" style="padding:5px 7px;font-size:10px;" onchange="setRoleBase(${i}, this.value)">
+        <option value="membre" ${base==='membre'?'selected':''}>Membre</option>
+        <option value="gestionnaire" ${base==='gestionnaire'?'selected':''}>Gestionnaire</option>
+      </select>
       <label title="Choisir une couleur" style="position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;width:38px;height:34px;border:1px solid var(--border);background:var(--bg3);">
         <div style="width:18px;height:18px;border-radius:50%;background:${col};border:2px solid rgba(255,255,255,0.15);pointer-events:none;"></div>
         <input type="color" value="${col}" data-role-color-idx="${i}"
@@ -7790,6 +7822,13 @@ function renderRolesNameList() {
       <button onclick="removeRole(${i})" style="padding:2px 8px;border:1px solid rgba(255,68,68,0.4);color:var(--red);background:transparent;cursor:pointer;font-family:var(--ui);font-size:11px;" title="Supprimer ce rôle">✕</button>
     </div>`;
   }).join('');
+}
+
+function setRoleBase(idx, baseRole) {
+  const name = ROLES[idx];
+  if (!name) return;
+  ROLES_BASE[name] = baseRole;
+  saveRolesConfig();
 }
 
 function setRoleColor(idx, hex) {
@@ -7818,7 +7857,7 @@ function toggleRoleInscription(roleName) {
   populateRegRoles && populateRegRoles();
 }
 
-function syncDroitsRoleKey(idx, newName) {
+function syncDroitsRoleKey(idx, oldName, newName) {
   if (oldName && oldName !== newName) {
     // Migrer droits
     ROLES_CONFIG[newName] = ROLES_CONFIG[oldName];
@@ -7827,6 +7866,16 @@ function syncDroitsRoleKey(idx, newName) {
     if (ROLES_COLORS_CUSTOM[oldName]) {
       ROLES_COLORS_CUSTOM[newName] = ROLES_COLORS_CUSTOM[oldName];
       delete ROLES_COLORS_CUSTOM[oldName];
+    }
+    // Migrer rôle de base
+    if (oldName in ROLES_BASE) {
+      ROLES_BASE[newName] = ROLES_BASE[oldName];
+      delete ROLES_BASE[oldName];
+    }
+    // Migrer visibilité à l'inscription
+    if (oldName in ROLES_INSCRIPTION_CONFIG) {
+      ROLES_INSCRIPTION_CONFIG[newName] = ROLES_INSCRIPTION_CONFIG[oldName];
+      delete ROLES_INSCRIPTION_CONFIG[oldName];
     }
   }
   renderDroitsTable();
@@ -7838,6 +7887,7 @@ function addRole() {
   ROLES_CONFIG[name] = { hub:1,map:1,partners:1,stocks:1,blueprints:1,commandes:1,objectifs:1,missions:1,commerce:1,logs:0,ressources:0,edit_stock:1,add_commande:1,add_objectif:0,add_mission:0,add_blueprint:0,delete_data:0,manage_roles:0 };
   ROLES_COLORS_CUSTOM[name] = ROLE_COLORS_POOL[(ROLES.length - 1) % ROLE_COLORS_POOL.length];
   ROLES_INSCRIPTION_CONFIG[name] = true; // visible par défaut à l'inscription
+  ROLES_BASE[name] = 'membre'; // rôle de base par défaut
   renderRolesNameList();
   renderDroitsTable();
   populateRegRoles && populateRegRoles();
@@ -7851,6 +7901,7 @@ function removeRole(idx) {
   delete ROLES_CONFIG[name];
   delete ROLES_COLORS_CUSTOM[name];
   delete ROLES_INSCRIPTION_CONFIG[name];
+  delete ROLES_BASE[name];
   renderRolesNameList();
   renderDroitsTable();
   populateRegRoles && populateRegRoles();
@@ -7933,6 +7984,7 @@ async function resetRolesConfig() {
   ROLES = ['Trader','Mineur','Transporteur','Explorateur','Lead','Gestionnaire'];
   ROLES_CONFIG = JSON.parse(JSON.stringify(DEFAULT_DROITS));
   ROLES_COLORS_CUSTOM = {};
+  ROLES_BASE = { Trader:'membre', Mineur:'membre', Transporteur:'membre', Explorateur:'membre', Lead:'membre', Gestionnaire:'gestionnaire' };
   await saveRolesConfig();
   renderRolesDroitsPanel();
   populateRegRoles && populateRegRoles();
