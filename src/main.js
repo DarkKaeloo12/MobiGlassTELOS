@@ -730,6 +730,7 @@ async function rejectMission(id) {
 }
 
 async function deleteMission(id) {
+  if (!canManageRoles() && !hasDroit('delete_data')) { toast('Accès refusé','','error'); return; }
   const m = MISSIONS.find(x => x.id === id);
   if (!m || !confirm('Supprimer la mission "' + m.title + '" ?')) return;
   MISSIONS = MISSIONS.filter(x => x.id !== id);
@@ -3656,6 +3657,7 @@ function refreshObjIngredients() {
 
 function openAddObjectif(editId) {
   editId = editId || null;
+  if (!editId && !hasDroit('add_objectif')) { toast('Accès refusé','Vous n\'avez pas le droit de créer un objectif.','error'); return; }
   _editObjId = editId;
   const o = editId ? OBJECTIFS.find(x => x.id === editId) : null;
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
@@ -3792,7 +3794,7 @@ async function updateIngredient(objId, ingIdx, val) {
 function editObjectif(id) { openAddObjectif(id); }
 
 async function deleteObjectif(id) {
-  if (!canManageRoles() && !hasDroit('delete_objectif')) { toast('Accès refusé','','error'); return; }
+  if (!canManageRoles() && !hasDroit('delete_objectif') && !hasDroit('delete_data')) { toast('Accès refusé','','error'); return; }
   const o = OBJECTIFS.find(x => x.id === id);
   if (!o || !confirm('Supprimer "' + o.title + '" ?')) return;
   OBJECTIFS = OBJECTIFS.filter(x => x.id !== id);
@@ -4001,6 +4003,7 @@ var _cmdBpBaseIngredients = [];
 
 function openAddCommande(editId) {
   editId = editId||null;
+  if (!editId && !hasDroit('add_commande')) { toast('Accès refusé','Vous n\'avez pas le droit de créer une commande.','error'); return; }
   _editCmdId = editId;
   const c = editId ? COMMANDES.find(x=>x.id===editId) : null;
 
@@ -4678,7 +4681,7 @@ async function cancelCommande(id) {
 }
 
 async function deleteCommande(id) {
-  if (!canManageRoles() && !hasDroit('delete_commande')) { toast('Accès refusé','','error'); return; }
+  if (!canManageRoles() && !hasDroit('delete_commande') && !hasDroit('delete_data')) { toast('Accès refusé','','error'); return; }
   const comm = COMMANDES.find(x=>x.id===id);
   if (!comm) return;
   if (!confirm('Supprimer définitivement "'+comm.title+'" ?')) return;
@@ -5411,6 +5414,7 @@ function refreshBpOwners(currentOwners) {
 
 function openAddBlueprint(editId) {
   editId = editId||null;
+  if (!editId && !hasDroit('add_blueprint')) { toast('Accès refusé','Vous n\'avez pas le droit d\'ajouter un blueprint.','error'); return; }
   _editBpId = editId;
   const b = editId ? BLUEPRINTS.find(x=>x.id===editId) : null;
   _bpIngredients = (b?.ingredients||[]).map(i=>({...i, id:Date.now()+Math.random()}));
@@ -5439,6 +5443,7 @@ function closeAddBlueprint() {
 function editBlueprint(id) { openAddBlueprint(id); }
 
 async function deleteBlueprint(id) {
+  if (!canManageRoles() && !hasDroit('delete_data')) { toast('Accès refusé','','error'); return; }
   const b = BLUEPRINTS.find(x=>x.id===id);
   if (!b || !confirm('Supprimer "'+b.name+'" ?')) return;
   BLUEPRINTS = BLUEPRINTS.filter(x=>x.id!==id);
@@ -7004,6 +7009,7 @@ async function openPlayerStock(type){
   _stockModalType = type;
   if (!selectedPid){ toast('Aucun joueur sélectionné','Cliquez d\'abord sur un joueur.','error'); return; }
   if (!requireAuth(selectedPid, ()=>openPlayerStock(type))) return;
+  if (!hasDroit('edit_stock')) { toast('Accès refusé','Vous n\'avez pas le droit de modifier le stock.','error'); return; }
   await refreshDatalist();
   populateResSelectFiltered('mineral');
   ['ps-res','ps-qty','ps-price','ps-sellprice','ps-note'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
@@ -7930,6 +7936,10 @@ function renderDroitsTable() {
     + '<th style="padding:8px 10px;border-bottom:2px solid var(--border);text-align:center;min-width:70px;"><span style="color:#fff;font-size:11px;letter-spacing:1px;font-weight:700;">ADMIN</span></th>'
     + '</tr>';
 
+  // Indice visuel de défilement horizontal si la table dépasse l'espace visible
+  const hint = document.getElementById('droits-scroll-hint');
+  if (hint) hint.style.display = ROLES.length > 4 ? '' : 'none';
+
   let rows = '';
   DROITS_DEFS.forEach(def => {
     // Séparateur de section
@@ -8726,6 +8736,7 @@ async function saveArmItem() {
 }
 
 async function deleteArmItem(id, name) {
+  if (!canManageRoles() && !hasDroit('delete_data')) { toast('Accès refusé','','error'); return; }
   if (!_armSelectedPid || !confirm('Supprimer "'+name+'" de l\'armurerie ?')) return;
   let items = (await DB.get('uex-armory-'+_armSelectedPid)) || [];
   items = items.filter(x=>x.id!==id);
@@ -9340,6 +9351,7 @@ function renderBankStats() {
 function openBankDetail(id) { /* futur : modal détail */ }
 
 async function deleteBankTransaction(id) {
+  if (!canManageRoles() && !hasDroit('add_transaction') && !hasDroit('delete_data')) { toast('Accès refusé','','error'); return; }
   const t = BANK_DATA.find(x=>x.id===id);
   if (!t||!confirm('Supprimer cette transaction ?')) return;
   BANK_DATA = BANK_DATA.filter(x=>x.id!==id);
