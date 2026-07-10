@@ -15,7 +15,7 @@ function updateAllNav() {
   const NAV_DROITS = {
     'nav-partners':   'partners',
     'nav-joueurs':    'ressource_par',
-    'nav-armurerie':  'ressource_par',
+    'nav-armurerie':  'armurerie',
     'nav-blueprints': 'blueprints',
     'nav-commandes':  'commandes',
     'nav-objectifs':  'objectifs',

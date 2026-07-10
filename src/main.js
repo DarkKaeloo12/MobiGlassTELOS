@@ -116,7 +116,7 @@ function updateAllNav() {
   const NAV_DROITS = {
     'nav-partners':   'partners',
     'nav-joueurs':    'ressource_par',
-    'nav-armurerie':  'ressource_par',
+    'nav-armurerie':  'armurerie',
     'nav-blueprints': 'blueprints',
     'nav-commandes':  'commandes',
     'nav-objectifs':  'objectifs',
@@ -6680,6 +6680,7 @@ var DROITS_DEFS = [
   { id:'partners',      label:'👥 Partenaires',            desc:'Voir la liste des partenaires' },
   { id:'stocks',        label:'📦 Stocks TELOS',           desc:'Voir le stock global consolidé' },
   { id:'ressource_par', label:'◈ Ressource par partenaire',desc:'Voir les stocks par partenaire' },
+  { id:'armurerie',     label:'⚔ Armurerie',              desc:'Voir le catalogue armement (équipements & armes)' },
   { id:'blueprints',    label:'📐 Blueprints',             desc:'Voir les blueprints' },
   { id:'commandes',     label:'📋 Commandes',              desc:'Voir les commandes' },
   { id:'objectifs',     label:'🎯 Objectifs',              desc:'Voir les objectifs' },
@@ -6711,12 +6712,12 @@ var DROITS_DEFS = [
 
 
 var DEFAULT_DROITS = {
-  Trader:        { hub:1,map:1,partners:1,stocks:1,ressource_par:1,blueprints:1,commandes:1,objectifs:1,missions:1,commerce:1,banque:0,logs:0,ressources:0,armurie:0,edit_stock:1,add_commande:1,use_priority:0,use_branche:0,add_objectif:0,add_mission:0,add_blueprint:0,add_transaction:0,delete_data:0,manage_roles:0 },
-  Mineur:        { hub:1,map:1,partners:1,stocks:1,ressource_par:1,blueprints:1,commandes:1,objectifs:1,missions:1,commerce:1,banque:0,logs:0,ressources:0,armurie:0,edit_stock:1,add_commande:1,use_priority:0,use_branche:0,add_objectif:0,add_mission:0,add_blueprint:0,add_transaction:0,delete_data:0,manage_roles:0 },
-  Transporteur:  { hub:1,map:1,partners:1,stocks:1,ressource_par:1,blueprints:1,commandes:1,objectifs:1,missions:1,commerce:1,banque:0,logs:0,ressources:0,armurie:0,edit_stock:1,add_commande:1,use_priority:0,use_branche:0,add_objectif:0,add_mission:0,add_blueprint:0,add_transaction:0,delete_data:0,manage_roles:0 },
-  Explorateur:   { hub:1,map:1,partners:1,stocks:1,ressource_par:1,blueprints:1,commandes:1,objectifs:1,missions:1,commerce:1,banque:0,logs:0,ressources:0,armurie:0,edit_stock:1,add_commande:1,use_priority:0,use_branche:0,add_objectif:0,add_mission:0,add_blueprint:0,add_transaction:0,delete_data:0,manage_roles:0 },
-  Lead:          { hub:1,map:1,partners:1,stocks:1,ressource_par:1,blueprints:1,commandes:1,objectifs:1,missions:1,commerce:1,banque:1,logs:1,ressources:1,armurie:1,edit_stock:1,add_commande:1,use_priority:1,use_branche:1,add_objectif:1,add_mission:1,add_blueprint:1,add_transaction:1,delete_data:0,manage_roles:0 },
-  Gestionnaire:  { hub:1,map:1,partners:1,stocks:1,ressource_par:1,blueprints:1,commandes:1,objectifs:1,missions:1,commerce:1,banque:1,logs:1,ressources:1,armurie:1,edit_stock:1,add_commande:1,use_priority:1,use_branche:1,add_objectif:1,add_mission:1,add_blueprint:1,add_transaction:1,delete_data:1,manage_roles:1 },
+  Trader:        { hub:1,map:1,partners:1,stocks:1,ressource_par:1,armurerie:1,blueprints:1,commandes:1,objectifs:1,missions:1,commerce:1,banque:0,logs:0,ressources:0,armurie:0,edit_stock:1,add_commande:1,use_priority:0,use_branche:0,add_objectif:0,add_mission:0,add_blueprint:0,add_transaction:0,delete_data:0,manage_roles:0 },
+  Mineur:        { hub:1,map:1,partners:1,stocks:1,ressource_par:1,armurerie:1,blueprints:1,commandes:1,objectifs:1,missions:1,commerce:1,banque:0,logs:0,ressources:0,armurie:0,edit_stock:1,add_commande:1,use_priority:0,use_branche:0,add_objectif:0,add_mission:0,add_blueprint:0,add_transaction:0,delete_data:0,manage_roles:0 },
+  Transporteur:  { hub:1,map:1,partners:1,stocks:1,ressource_par:1,armurerie:1,blueprints:1,commandes:1,objectifs:1,missions:1,commerce:1,banque:0,logs:0,ressources:0,armurie:0,edit_stock:1,add_commande:1,use_priority:0,use_branche:0,add_objectif:0,add_mission:0,add_blueprint:0,add_transaction:0,delete_data:0,manage_roles:0 },
+  Explorateur:   { hub:1,map:1,partners:1,stocks:1,ressource_par:1,armurerie:1,blueprints:1,commandes:1,objectifs:1,missions:1,commerce:1,banque:0,logs:0,ressources:0,armurie:0,edit_stock:1,add_commande:1,use_priority:0,use_branche:0,add_objectif:0,add_mission:0,add_blueprint:0,add_transaction:0,delete_data:0,manage_roles:0 },
+  Lead:          { hub:1,map:1,partners:1,stocks:1,ressource_par:1,armurerie:1,blueprints:1,commandes:1,objectifs:1,missions:1,commerce:1,banque:1,logs:1,ressources:1,armurie:1,edit_stock:1,add_commande:1,use_priority:1,use_branche:1,add_objectif:1,add_mission:1,add_blueprint:1,add_transaction:1,delete_data:0,manage_roles:0 },
+  Gestionnaire:  { hub:1,map:1,partners:1,stocks:1,ressource_par:1,armurerie:1,blueprints:1,commandes:1,objectifs:1,missions:1,commerce:1,banque:1,logs:1,ressources:1,armurie:1,edit_stock:1,add_commande:1,use_priority:1,use_branche:1,add_objectif:1,add_mission:1,add_blueprint:1,add_transaction:1,delete_data:1,manage_roles:1 },
 };
 
 // Couleurs personnalisées des rôles { roleName: '#rrggbb' }
@@ -6745,6 +6746,11 @@ async function loadRolesConfig() {
       // Rôle de base par défaut : "Gestionnaire" (nom historique) → gestionnaire, sinon membre
       if (!(r in ROLES_BASE)) {
         ROLES_BASE[r] = r === 'Gestionnaire' ? 'gestionnaire' : 'membre';
+      }
+      // Migration : le droit "armurerie" (nouveau, séparé de ressource_par) hérite
+      // de la valeur de ressource_par pour ne couper l'accès à personne
+      if (ROLES_CONFIG[r] && !('armurerie' in ROLES_CONFIG[r])) {
+        ROLES_CONFIG[r].armurerie = ROLES_CONFIG[r].ressource_par ?? 1;
       }
     });
   } catch(e) { ROLES_CONFIG = JSON.parse(JSON.stringify(DEFAULT_DROITS)); }
