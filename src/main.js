@@ -2428,9 +2428,7 @@ async function renderPartners(){
 
       <!-- Liens RSI/TELOS -->
       <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
-        <a href="${esc(p.rsi)}" target="_blank" rel="noopener" class="prof-link" onclick="event.stopPropagation()" style="font-size:9px;padding:2px 7px;">
-          <span class="ll">RSI</span>${shortUrl(p.rsi)}
-        </a>
+        ${p.rsi ? `<a href="${esc(p.rsi)}" target="_blank" rel="noopener" class="prof-link" onclick="event.stopPropagation()" style="font-size:9px;padding:2px 7px;"><span class="ll">RSI</span>${shortUrl(p.rsi)}</a>` : ''}
         ${p.uex ? `<a href="${esc(p.uex)}" target="_blank" rel="noopener" class="prof-link" onclick="event.stopPropagation()" style="font-size:9px;padding:2px 7px;"><span class="ll">UEX</span>${shortUrl(p.uex)}</a>` : ''}
       </div>
 
@@ -5171,8 +5169,10 @@ async function syncItemsFromUEX() {
 
   _uexItemsSyncRunning = true;
   const btn    = document.getElementById('btn-uex-items-sync');
+  const btnArm = document.getElementById('btn-uex-items-sync-arm');
   const status = document.getElementById('uex-sync-status');
   if (btn)    btn.textContent = '⏳ Sync...';
+  if (btnArm) btnArm.textContent = '⏳ Sync...';
   if (status) status.textContent = 'Connexion à UEXCorp API (items)...';
 
   const BEARER   = '0b7797b0ee37052d9c8dfe493305b7a2d1ab8f43';
@@ -5221,12 +5221,44 @@ async function syncItemsFromUEX() {
     return 'autre';
   }
 
+  // Détermine où doit atterrir chaque catégorie UEX :
+  // - DATA ARMURIE (armes FPS, armures, armes vaisseau, composants, industriel)
+  //   avec le bon "tab", en reprenant exactement les mêmes onglets que ce panneau.
+  // - DATA RESSOURCE pour tout le reste (collectibles, consommables, décorations...)
+  function classifyCategory(cat) {
+    const c = ((cat.section||'') + ' ' + (cat.name||'')).toLowerCase();
+
+    // ── Armes FPS (mêmes mots-clés que l'onglet "🔫 ARMES FPS") ──
+    if (/\b(pistol|rifle|smg|shotgun|sniper|melee|knife|sidearm|fps.*weapon|weapon.*fps|thrown|grenade launcher)\b/.test(c)
+        && !/(ship|vehicle|turret)/.test(c))
+      return { target:'armurie', tab:'fps' };
+
+    // ── Armures FPS (onglet "🛡 ARMURES FPS") ──
+    if (/\b(armor|armour|helmet|undersuit|backpack|torso|arms?|legs?)\b/.test(c) && /(armor|armour|helmet|undersuit)/.test(c))
+      return { target:'armurie', tab:'armor' };
+
+    // ── Armes Vaisseau (onglet "🚀 ARMES VAISSEAU") ──
+    if (/(ship|vehicle).*(weapon|turret|bomb|missile)|turret|missile rack|bomb launcher/.test(c))
+      return { target:'armurie', tab:'shipwep' };
+
+    // ── Composants (onglet "⚙ COMPOSANTS") ──
+    if (/(cooler|power plant|quantum drive|shield|radar|flight blade|life support|jump drive)/.test(c))
+      return { target:'armurie', tab:'shipcomp' };
+
+    // ── Industriel (onglet "🏭 INDUSTRIEL") : mining/salvage/refuel/towing ──
+    if (/(mining head|mining mod|salvage head|salvage mod|fuel nozzle|fuel pod|tractor beam|towing beam)/.test(c))
+      return { target:'armurie', tab:'industriel' };
+
+    // ── Sinon → reste une ressource classique (collectibles, consommables, etc.) ──
+    return { target:'ressource', cat: mapItemCategory(cat) };
+  }
+
   try {
     if (status) status.textContent = 'Récupération des catégories d\'items...';
     const categories = await apiFetch('categories?type=item');
     if (!categories || !categories.length) throw new Error('Aucune catégorie reçue');
 
-    let added = 0, updated = 0, done = 0;
+    let addedRes = 0, updatedRes = 0, addedArm = 0, updatedArm = 0, done = 0;
     const now = new Date().toISOString();
 
     for (const cat of categories) {
@@ -5240,6 +5272,7 @@ async function syncItemsFromUEX() {
       let prices = [];
       try { prices = await apiFetch('items_prices?id_category=' + cat.id); } catch(e) {}
       const priceMap = {};
+      let locMap = {};
       if (Array.isArray(prices)) {
         prices.forEach(p => {
           const iid = p.id_item;
@@ -5249,10 +5282,11 @@ async function syncItemsFromUEX() {
           const sell = Number(p.price_sell_max || p.price_sell || 0);
           if (buy  > 0) priceMap[iid].buys.push(buy);
           if (sell > 0) priceMap[iid].sells.push(sell);
+          if (!locMap[iid] && p.terminal_name) locMap[iid] = p.terminal_name;
         });
       }
 
-      const nexoraCat = mapItemCategory(cat);
+      const dest = classifyCategory(cat);
 
       items.forEach(it => {
         const name = (it.name || '').trim();
@@ -5261,23 +5295,44 @@ async function syncItemsFromUEX() {
         const buyMin  = pm.buys.length  ? Math.min(...pm.buys)  : 0;
         const sellMax = pm.sells.length ? Math.max(...pm.sells) : 0;
 
-        const existing = RESSOURCE_CATALOGUE.find(x => x.name.toLowerCase() === name.toLowerCase());
-        if (existing) {
-          if (buyMin  > 0) { existing.buyRef  = buyMin;  existing.buyMin  = buyMin; }
-          if (sellMax > 0) { existing.sellRef = sellMax; existing.sellMax = sellMax; }
-          existing.fromUEXItem = true;
-          existing.uexItemId   = it.id;
-          existing.updatedAt   = now;
-          updated++;
+        if (dest.target === 'armurie') {
+          const existing = ARMURIE_CATALOGUE.find(x => (x.name||'').toLowerCase() === name.toLowerCase());
+          if (existing) {
+            existing.tab      = existing.tab || dest.tab;
+            if (buyMin  > 0) existing.prix = buyMin;
+            existing.loc      = existing.loc || locMap[it.id] || '';
+            existing.fromUEXItem = true;
+            existing.uexItemId   = it.id;
+            existing.updatedAt   = now;
+            updatedArm++;
+          } else {
+            ARMURIE_CATALOGUE.push({
+              id: 'arm_uexitem_' + it.id + '_' + Date.now().toString(36),
+              tab: dest.tab, name, type: cat.name || '',
+              prix: buyMin || sellMax || 0, loc: locMap[it.id] || '',
+              fromUEXItem: true, uexItemId: it.id, addedAt: now, updatedAt: now
+            });
+            addedArm++;
+          }
         } else {
-          RESSOURCE_CATALOGUE.push({
-            id: 'r_uexitem_' + it.id + '_' + Date.now().toString(36),
-            name, cat: nexoraCat, quality: '',
-            buyRef: buyMin, sellRef: sellMax, buyMin, sellMax,
-            desc: it.category || cat.name || '',
-            fromUEXItem: true, uexItemId: it.id, addedAt: now, updatedAt: now
-          });
-          added++;
+          const existing = RESSOURCE_CATALOGUE.find(x => x.name.toLowerCase() === name.toLowerCase());
+          if (existing) {
+            if (buyMin  > 0) { existing.buyRef  = buyMin;  existing.buyMin  = buyMin; }
+            if (sellMax > 0) { existing.sellRef = sellMax; existing.sellMax = sellMax; }
+            existing.fromUEXItem = true;
+            existing.uexItemId   = it.id;
+            existing.updatedAt   = now;
+            updatedRes++;
+          } else {
+            RESSOURCE_CATALOGUE.push({
+              id: 'r_uexitem_' + it.id + '_' + Date.now().toString(36),
+              name, cat: dest.cat, quality: '',
+              buyRef: buyMin, sellRef: sellMax, buyMin, sellMax,
+              desc: cat.name || '',
+              fromUEXItem: true, uexItemId: it.id, addedAt: now, updatedAt: now
+            });
+            addedRes++;
+          }
         }
       });
 
@@ -5285,12 +5340,15 @@ async function syncItemsFromUEX() {
     }
 
     await DB.set('telos-ressource-catalogue', RESSOURCE_CATALOGUE);
+    await DB.set('telos-armurie-custom', ARMURIE_CATALOGUE);
     await DB.set('telos-last-uex-items-sync', String(Date.now()));
     await refreshDatalist();
     populateResSelect();
     renderRessources();
+    if (typeof renderArmurie === 'function') renderArmurie();
 
-    const msg = added + ' ajoutés, ' + updated + ' mis à jour (' + done + ' catégories UEX items)';
+    const msg = (addedRes+addedArm) + ' ajoutés (' + addedRes + ' ressources, ' + addedArm + ' armurie), '
+      + (updatedRes+updatedArm) + ' mis à jour — ' + done + ' catégories UEX';
     if (status) status.textContent = '✓ ' + msg;
     toast('Items UEX synchronisés', msg, 'success');
   } catch(e) {
@@ -5298,7 +5356,8 @@ async function syncItemsFromUEX() {
     if (status) status.textContent = '⚠ Échec';
   } finally {
     _uexItemsSyncRunning = false;
-    if (btn) btn.textContent = '🔩 SYNC ITEMS UEX';
+    if (btn)    btn.textContent = '🔩 SYNC ITEMS UEX';
+    if (btnArm) btnArm.textContent = '🔩 SYNC ITEMS UEX';
   }
 }
 
@@ -7902,7 +7961,7 @@ function toast(title,msg,type='info'){
 ════════════════════════════════════════════════════════════ */
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtDate(iso){ if(!iso) return '—'; const d=new Date(iso); return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`; }
-function shortUrl(url){ try{ const u=new URL(url); const parts=u.pathname.replace(/\/$/,'').split('/').filter(Boolean); return parts[parts.length-1]||u.hostname; }catch(e){ return url.slice(0,28); } }
+function shortUrl(url){ if(!url) return '—'; try{ const u=new URL(url); const parts=u.pathname.replace(/\/$/,'').split('/').filter(Boolean); return parts[parts.length-1]||u.hostname; }catch(e){ return String(url).slice(0,28); } }
 
 /* ════════════════════════════════════════════════════════════
    KEYBOARD SHORTCUTS
