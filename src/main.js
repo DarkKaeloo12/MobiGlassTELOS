@@ -2815,9 +2815,9 @@ function execConfirm(){ if(confirmCb) confirmCb(); closeConfirm(); }
 ════════════════════════════════════════════════════════════ */
 function goToStock(el) {
   goPanel('joueurs', el);
-  if (SESSION && !SESSION.isAdmin) {
-    // Joueur connecté (non admin) → accès direct à son stock, sidebar masquée
-    const sidebar = document.querySelector('.pl-sidebar');
+  if (SESSION && !canManageRoles()) {
+    // Joueur connecté (non manager) → accès direct à son stock, liste masquée
+    const sidebar = document.getElementById('jsp-list-view');
     if (sidebar) sidebar.style.display = 'none';
     setTimeout(() => selectPlayer(SESSION.pid), 80);
   } else if (SESSION && SESSION.isAdmin) {
@@ -6154,7 +6154,10 @@ function showErr(id,msg){ document.getElementById(id).textContent=msg; document.
 /* Render sidebar player list */
 async function renderPlayerList(filter=''){
   const list=document.getElementById('pl-list');
-  const filtered=filter ? players.filter(p=>p.name.toLowerCase().includes(filter.toLowerCase())) : players;
+  // Sécurité : seuls Admin/Gestionnaire voient la liste des partenaires.
+  // Les autres ne voient (et ne peuvent sélectionner) que leur propre profil.
+  const base = canManageRoles() ? players : players.filter(p=>p.id===SESSION?.pid);
+  const filtered=filter ? base.filter(p=>p.name.toLowerCase().includes(filter.toLowerCase())) : base;
   if (!filtered.length){
     list.innerHTML=`<div class="pl-empty-msg">${filter?'Aucun résultat.':'Aucun joueur enregistré.<br>Utilisez l\'onglet + Inscription.'}</div>`;
     return;
@@ -6219,6 +6222,11 @@ function backToPartnerList() {
 }
 
 async function selectPlayer(id){
+  // Sécurité : un joueur non Admin/Gestionnaire ne peut sélectionner que son propre profil
+  if (!canManageRoles() && SESSION && id !== SESSION.pid) {
+    toast('Accès refusé', 'Vous ne pouvez consulter que votre propre inventaire.', 'error');
+    id = SESSION.pid;
+  }
   selectedPid=id;
   const p=players.find(x=>x.id===id);
   if (!p) return;
@@ -8177,13 +8185,21 @@ var ARM_CAT_COLORS = {
 function goToArmurerie(el) {
   if (!SESSION) { openLoginModal(null, () => goToArmurerie(el)); return; }
   goPanel('armurerie', el);
+  if (!canManageRoles()) {
+    // Joueur non manager → accès direct à sa propre armurerie, liste masquée
+    const sidebar = document.getElementById('arm-list-view');
+    if (sidebar) sidebar.style.display = 'none';
+    setTimeout(() => selectArmPlayer(SESSION.pid), 80);
+  }
 }
 
 // Rendre la liste des partenaires dans la sidebar armurerie
 async function renderArmPartnerList(filter='') {
   const list = document.getElementById('arm-list');
   if (!list) return;
-  const filtered = filter ? players.filter(p=>p.name.toLowerCase().includes(filter.toLowerCase())) : players;
+  // Sécurité : seuls Admin/Gestionnaire voient la liste des partenaires.
+  const base = canManageRoles() ? players : players.filter(p=>p.id===SESSION?.pid);
+  const filtered = filter ? base.filter(p=>p.name.toLowerCase().includes(filter.toLowerCase())) : base;
   if (!filtered.length) { list.innerHTML='<div class="pl-empty-msg">Aucun partenaire.</div>'; return; }
   const items = await Promise.all(filtered.map(async p => {
     const items = (await DB.get('uex-armory-'+p.id)) || [];
@@ -8320,6 +8336,11 @@ function backToArmList() {
 }
 
 async function selectArmPlayer(pid) {
+  // Sécurité : un joueur non Admin/Gestionnaire ne peut sélectionner que son propre profil
+  if (!canManageRoles() && SESSION && pid !== SESSION.pid) {
+    toast('Accès refusé', 'Vous ne pouvez consulter que votre propre armurerie.', 'error');
+    pid = SESSION.pid;
+  }
   _armSelectedPid = pid;
   const p = players.find(x=>x.id===pid);
   if (!p) return;
