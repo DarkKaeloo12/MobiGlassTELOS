@@ -872,6 +872,8 @@ function showLoginWall(){} // stub
           <button class="filter-btn" onclick="setResFilter('ressources',this)">📦 Ressources</button>
           <button class="filter-btn" onclick="setResFilter('equipements',this)">🛡 Équipements</button>
           <button class="filter-btn" onclick="setResFilter('armement',this)">⚔ Armement</button>
+          <button class="filter-btn" onclick="setResFilter('accessoires',this)">🎒 Accessoires</button>
+          <button class="filter-btn" onclick="setResFilter('autre',this)">○ Autre</button>
           <span id="res-count" style="margin-left:auto;font-size:11px;color:var(--text-dim);font-family:var(--mono);"></span>
           <button onclick="openAddRessourceCustom()" class="btn primary" style="padding:3px 14px;font-size:11px;letter-spacing:1px;">+ AJOUTER</button>
           <button onclick="syncFromUEX()" id="btn-uex-sync" style="padding:3px 12px;border:1px solid rgba(89,208,255,0.4);background:transparent;color:var(--blue);font-family:var(--ui);font-size:10px;letter-spacing:1px;cursor:pointer;transition:all 0.15s;white-space:nowrap;" title="Synchroniser avec UEXCorp.space">
@@ -1417,8 +1419,7 @@ function showLoginWall(){} // stub
           <button type="button" class="cat-sel-btn"        data-cat="resources"   onclick="selectCat(this)">📦 Ressources</button>
           <button type="button" class="cat-sel-btn"        data-cat="equipment"   onclick="selectCat(this)">🛡 Équipements</button>
           <button type="button" class="cat-sel-btn"        data-cat="weapons"     onclick="selectCat(this)">🔫 Armement</button>
-          <button type="button" class="cat-sel-btn"        data-cat="accessories" onclick="selectCat(this)">🔩 Accessoires</button>
-          <button type="button" class="cat-sel-btn"        data-cat="other"       onclick="selectCat(this)" style="grid-column:span 2;">○ Autre</button>
+          <button type="button" class="cat-sel-btn"        data-cat="other"       onclick="selectCat(this)" style="grid-column:span 3;">○ Autre</button>
         </div>
         <input type="hidden" id="ps-cat" value="mineral">
       </div>
