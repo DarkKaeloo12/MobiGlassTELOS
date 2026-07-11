@@ -2845,7 +2845,7 @@ var _resCatFilter = 'all';
 
 var CAT_LABELS = {
   mineral:'⛏ Minéraux', salvage:'🔧 Salvage', ressources:'📦 Ressources',
-  equipements:'🛡 Équipements', armement:'⚔ Armement', accessoires:'🎒 Accessoires', autre:'○ Autre'
+  equipements:'🛡 Équipements', accessoires:'🎒 Accessoires', autre:'○ Autre'
 };
 
 async function loadRessourceCatalogue() {
@@ -2869,6 +2869,26 @@ function setResFilter(f, btn) {
 async function renderRessources() {
   const tbody = document.getElementById('res-tbody');
   if (!tbody) return;
+
+  // Migration : "Armement" n'existe plus côté Data Ressource — toute entrée
+  // encore taguée ainsi (anciens sync) est déplacée vers Data Armurie (onglet Armes FPS).
+  const _legacyArmement = RESSOURCE_CATALOGUE.filter(r => r.cat === 'armement');
+  if (_legacyArmement.length) {
+    _legacyArmement.forEach(r => {
+      const already = ARMURIE_CATALOGUE.find(x => (x.name||'').toLowerCase() === r.name.toLowerCase());
+      if (!already) {
+        ARMURIE_CATALOGUE.push({
+          id: 'arm_migr_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,5),
+          tab: 'fps', name: r.name, type: r.desc || '', prix: r.buyRef || r.sellRef || 0, loc: '',
+          fromUEX: !!r.fromUEX, fromUEXItem: !!r.fromUEXItem, addedAt: r.addedAt || new Date().toISOString(), updatedAt: new Date().toISOString()
+        });
+      }
+    });
+    RESSOURCE_CATALOGUE = RESSOURCE_CATALOGUE.filter(r => r.cat !== 'armement');
+    await DB.set('telos-ressource-catalogue', RESSOURCE_CATALOGUE);
+    await DB.set('telos-armurie-custom', ARMURIE_CATALOGUE);
+    toast('Migration effectuée', _legacyArmement.length + ' ressource(s) "Armement" déplacée(s) vers Data Armurie.', 'info');
+  }
   if (!canManageRoles()) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-dim);">Acces reserve aux Admins et Gestionnaires.</td></tr>';
     return;
@@ -3140,14 +3160,17 @@ async function importBlueprintsToArmurieData() {
 
 function setArmTab(tab, btn) {
   _armTab = tab;
-  document.querySelectorAll('#panel-armurie [id^="arm-tab-"]').forEach(b => {
-    b.style.borderBottom = '2px solid transparent';
-    b.style.color = 'var(--text-dim)';
+  document.querySelectorAll('#panel-armurie .filter-btn').forEach(b => {
+    b.classList.remove('active');
+    // Nettoyage des styles inline résiduels d'une ancienne version (border-bottom/color)
+    // qui, sinon, écrasent visuellement la classe .active (spécificité inline > classe CSS)
+    b.style.borderBottom = '';
+    b.style.color = '';
   });
-  if (btn) { btn.style.borderBottom = '2px solid var(--orange)'; btn.style.color = 'var(--text-bright)'; }
-  // Mettre à jour le filtre type
-  _updateArmTypeFilter();
-  renderArmurie();
+  if (btn) btn.classList.add('active');
+  // Mettre à jour le filtre type (ne doit jamais bloquer le rendu du tableau)
+  try { _updateArmTypeFilter(); } catch(e) { console.warn('_updateArmTypeFilter error:', e); }
+  try { renderArmurie(); } catch(e) { console.error('renderArmurie error:', e); toast('Erreur affichage','Voir la console pour les détails.','error'); }
 }
 
 function _updateArmTypeFilter() {
@@ -5082,7 +5105,7 @@ async function syncFromUEX() {
       'Salvage':'salvage','Scrap':'salvage',
       'Agricultural':'ressources','Food':'ressources','Medical':'ressources',
       'Drug':'ressources','Liquid':'ressources',
-      'Weapon':'armement','Ammunition':'armement',
+      'Weapon':'__armurie_fps','Ammunition':'__armurie_fps',
       'Armor':'equipements','Component':'equipements','Electronics':'equipements',
       'Consumable':'accessoires','Personal':'accessoires',
       'Other':'autre','Data':'autre',
@@ -5104,6 +5127,23 @@ async function syncFromUEX() {
       const buyMin  = pEntry.buy  || buyRef;   // min achat  (ou fallback)
       const sellMax = pEntry.sell || sellRef;  // max vente  (ou fallback)
       const terminals = pEntry.terminals || 0;
+
+      // Weapon/Ammunition → Data Armurie (onglet Armes FPS), pas Data Ressource
+      if (cat === '__armurie_fps') {
+        const existingArm = ARMURIE_CATALOGUE.find(x => (x.name||'').toLowerCase() === name.toLowerCase());
+        if (existingArm) {
+          if (buyMin > 0) existingArm.prix = buyMin;
+          existingArm.fromUEX = true;
+          existingArm.updatedAt = now;
+        } else {
+          ARMURIE_CATALOGUE.push({
+            id: 'arm_uex_' + (cid || Date.now() + '_' + Math.random().toString(36).slice(2,5)),
+            tab: 'fps', name, type: c.kind || '', prix: buyMin || sellMax || 0, loc: '',
+            fromUEX: true, uexId: cid, addedAt: now, updatedAt: now
+          });
+        }
+        return;
+      }
 
       const existing = RESSOURCE_CATALOGUE.find(x => x.name.toLowerCase() === name.toLowerCase());
       if (existing) {
@@ -5129,6 +5169,7 @@ async function syncFromUEX() {
 
     // ── ÉTAPE 4 : Sauvegarde & mise à jour UI ──
     await DB.set('telos-ressource-catalogue', RESSOURCE_CATALOGUE);
+    await DB.set('telos-armurie-custom', ARMURIE_CATALOGUE);
     await DB.set('telos-last-uex-sync', String(Date.now()));
     await refreshDatalist();
     populateResSelect();
@@ -5141,6 +5182,7 @@ async function syncFromUEX() {
       if (_rNavM) _rNavM.classList.add('active');
     }
     await renderRessources();
+    if (typeof renderArmurie === 'function') renderArmurie();
 
     const priced = Object.keys(priceMap).length;
     const msg = added + ' ajoutées, ' + updated + ' mises à jour (' + priced + ' prix récupérés)';
@@ -5208,10 +5250,9 @@ async function syncItemsFromUEX() {
   // Correspondance section/catégorie UEX -> catégorie NEXORA
   function mapItemCategory(cat) {
     const c = ((cat.section||'') + ' ' + (cat.name||'')).toLowerCase();
-    if (c.includes('weapon') || c.includes('ballistic') || c.includes('laser') || c.includes('ammo') || c.includes('missile'))
-      return 'armement';
-    if (c.includes('armor') || c.includes('armour') || c.includes('undersuit') || c.includes('helmet') || c.includes('clothing'))
-      return 'equipements';
+    // Armes/armures : normalement déjà interceptées par classifyCategory() vers Data Armurie.
+    // Si jamais une catégorie passe au travers, on la range en "Autre" plutôt qu'en "Armement"
+    // (cette catégorie n'existe plus côté Data Ressource).
     if (c.includes('salvage')) return 'salvage';
     if (c.includes('mining')) return 'mineral';
     if (c.includes('gadget') || c.includes('tool') || c.includes('utility') || c.includes('attachment') || c.includes('cooler'))
@@ -7141,7 +7182,7 @@ function populateResSelect() {
   if (!sel) return;
 
   // Grouper par catégorie
-  const CAT_ORDER = ['mineral','salvage','ressources','equipements','armement','accessoires','autre'];
+  const CAT_ORDER = ['mineral','salvage','ressources','equipements','accessoires','autre'];
   const groups = {};
   RESSOURCE_CATALOGUE.forEach(r => {
     const cat = r.cat || 'autre';
