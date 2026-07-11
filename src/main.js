@@ -3093,6 +3093,7 @@ function goToRessources(el) {
 
 var SC_DB = {};
 var _armTab = 'fps';
+var _armorMigrationDone = false;
 
 async function loadArmurieCatalogue() {
   const stored = await DB.get('telos-armurie-custom');
@@ -3213,6 +3214,24 @@ function renderArmurie() {
   const tbody  = document.getElementById('arm-tbody');
   const thead  = document.getElementById('arm-thead');
   if (!tbody) return;
+
+  // Migration : armures FPS mal classées en "Composants" (une seule fois par session)
+  if (!_armorMigrationDone) {
+    _armorMigrationDone = true;
+    const _armorPieceRe = /\b(armor|armour|helmet|undersuit|torso|backpack|arms|legs)\b/i;
+    let _reclassified = 0;
+    ARMURIE_CATALOGUE.forEach(a => {
+      if (a.tab === 'shipcomp' && _armorPieceRe.test((a.name||'') + ' ' + (a.type||'') + ' ' + (a.loc||''))) {
+        a.tab = 'armor';
+        a.updatedAt = new Date().toISOString();
+        _reclassified++;
+      }
+    });
+    if (_reclassified > 0) {
+      DB.set('telos-armurie-custom', ARMURIE_CATALOGUE).catch(e => console.warn('migration armor save error:', e));
+      toast('Migration effectuée', _reclassified + ' armure(s) reclassée(s) depuis "Composants".', 'info');
+    }
+  }
 
   const q       = (document.getElementById('arm-search')?.value || '').toLowerCase();
   const typeFilter = document.getElementById('arm-type-filter')?.value || '';
@@ -5298,7 +5317,9 @@ async function syncItemsFromUEX() {
       return { target:'armurie', tab:'fps' };
 
     // ── Armures FPS (onglet "🛡 ARMURES FPS") ──
-    if (/\b(armor|armour|helmet|undersuit|backpack|torso|arms?|legs?)\b/.test(c) && /(armor|armour|helmet|undersuit)/.test(c))
+    // Catégories UEX par pièce d'armure (Helmets/Arms/Torsos/Backpacks/Legs/Undersuits)
+    // n'ont pas toujours le mot "armor" accolé — on les détecte directement par nom de pièce.
+    if (/\b(armor|armour|helmet|helmets|undersuit|undersuits|torso|torsos|backpack|backpacks|arms|legs)\b/.test(c))
       return { target:'armurie', tab:'armor' };
 
     // ── Armes Vaisseau (onglet "🚀 ARMES VAISSEAU") ──
