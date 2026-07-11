@@ -6618,8 +6618,8 @@ async function selectPlayer(id){
   if (!window._playerBpCache) window._playerBpCache = {};
   // Toujours recharger depuis DB pour être à jour
   window._playerBpCache[id] = (await DB.get('player-blueprints-' + id)) || [];
-  const bpBadge = document.getElementById('badge-blueprints');
-  if (bpBadge) { const _n=window._playerBpCache[id].length; bpBadge.textContent=_n; bpBadge.style.display=_n>0?'':'none'; }
+  // Badge nav laissé sur le compte personnel du joueur connecté — ne pas l'écraser
+  // avec celui du partenaire consulté.
   const stocks=(await DB.get('uex-stocks-'+id))||[];
   document.getElementById('pl-placeholder').style.display='none';
   const content=document.getElementById('pl-content');
@@ -8077,24 +8077,24 @@ async function updateBadges(){
   const _s=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
   _s('badge-joueurs', players.length);
   _s('kpi-partners', players.length);
-  // Compter toutes les ressources TELOS de tous les partenaires
-  let totalRes = 0, totalArm = 0;
-  for (const p of players) {
-    const stocks = (await DB.get('uex-stocks-'+p.id)) || [];
-    totalRes += stocks.filter(s => (parseFloat(s.qty)||0) > 0).length;
-    const armory = (await DB.get('uex-armory-'+p.id)) || [];
-    totalArm += armory.filter(a => (parseFloat(a.qty)||0) > 0).length;
-  }
+
   const badgeRes = document.getElementById('badge-ressource-stock');
-  if (badgeRes) {
-    badgeRes.textContent = totalRes;
-    badgeRes.style.display = totalRes > 0 ? '' : 'none';
-  }
   const badgeArm = document.getElementById('badge-armurerie');
-  if (badgeArm) {
-    badgeArm.textContent = totalArm;
-    badgeArm.style.display = totalArm > 0 ? '' : 'none';
+
+  if (!SESSION) {
+    if (badgeRes) badgeRes.style.display = 'none';
+    if (badgeArm) badgeArm.style.display = 'none';
+    return;
   }
+
+  // Stock personnel du joueur connecté (pas le total réseau)
+  const myStocks = (await DB.get('uex-stocks-'+SESSION.pid)) || [];
+  const myRes = myStocks.filter(s => (parseFloat(s.qty)||0) > 0).length;
+  const myArmory = (await DB.get('uex-armory-'+SESSION.pid)) || [];
+  const myArm = myArmory.filter(a => (parseFloat(a.qty)||0) > 0).length;
+
+  if (badgeRes) { badgeRes.textContent = myRes; badgeRes.style.display = myRes > 0 ? '' : 'none'; }
+  if (badgeArm) { badgeArm.textContent = myArm; badgeArm.style.display = myArm > 0 ? '' : 'none'; }
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -8855,10 +8855,8 @@ async function renderArmTable() {
     </tr>`;
   }).join('');
   updateArmFooter(rows);
-  // Badge nav
-  const badge = document.getElementById('badge-armurerie');
-  const allItems = ((await DB.get('uex-armory-'+_armSelectedPid))||[]).filter(a=>(parseFloat(a.qty)||0)>0);
-  if (badge) { badge.textContent=allItems.length; badge.style.display=allItems.length?'':'none'; }
+  // Badge nav laissé au calcul réseau (updateBadges()) — ne pas l'écraser
+  // avec le compte du seul partenaire actuellement consulté.
 }
 
 function updateArmFooter(rows) {
@@ -9275,9 +9273,9 @@ async function toggleBpOwner(bpId, checked) {
     await saveBlueprints();
   }
   await renderBlueprints();
-  // Badge
+  // Badge nav = compte personnel du joueur connecté
   const _bb = document.getElementById('badge-blueprints');
-  if (_bb) { _bb.textContent = myBps.length; _bb.style.display = myBps.length > 0 ? '' : 'none'; }
+  if (_bb) { const myBps=SESSION?((window._playerBpCache&&window._playerBpCache[SESSION.pid])||[]):[]; _bb.textContent = myBps.length; _bb.style.display = myBps.length > 0 ? '' : 'none'; }
   toast(checked ? '✓ Blueprint sauvegardé' : 'Blueprint retiré', bp?.name || '', checked ? 'success' : 'info');
 }
 async function loadPlayerOwnedBlueprints() {
@@ -9287,7 +9285,7 @@ async function loadPlayerOwnedBlueprints() {
   const myBps = (await DB.get('player-blueprints-' + pid)) || [];
   if (!window._playerBpCache) window._playerBpCache = {};
   window._playerBpCache[pid] = myBps;
-  // Mettre à jour le badge
+  // Badge nav = compte personnel du joueur connecté
   const _bb = document.getElementById('badge-blueprints');
   if (_bb) { _bb.textContent = myBps.length; _bb.style.display = myBps.length > 0 ? '' : 'none'; }
   return myBps;
