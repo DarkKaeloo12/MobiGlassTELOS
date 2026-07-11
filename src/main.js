@@ -3210,27 +3210,35 @@ function _updateArmTypeFilter() {
 // Ancienne fonction conservée pour compatibilité
 function setArmFilter(cat, btn) { setArmTab(cat === 'all' ? 'fps' : cat, null); }
 
+function migrateArmorFromComponents(silent) {
+  const _armorPieceRe = /\b(armor|armour|helmet|undersuit|torso|backpack|arms|legs)\b/i;
+  let _reclassified = 0;
+  ARMURIE_CATALOGUE.forEach(a => {
+    if (a.tab === 'shipcomp' && _armorPieceRe.test((a.name||'') + ' ' + (a.type||'') + ' ' + (a.loc||''))) {
+      a.tab = 'armor';
+      a.updatedAt = new Date().toISOString();
+      _reclassified++;
+    }
+  });
+  if (_reclassified > 0) {
+    DB.set('telos-armurie-custom', ARMURIE_CATALOGUE).catch(e => console.warn('migration armor save error:', e));
+    toast('Migration effectuée', _reclassified + ' armure(s) reclassée(s) depuis "Composants".', 'info');
+    if (!silent) renderArmurie();
+  } else if (!silent) {
+    toast('Rien à corriger', 'Aucune armure mal classée trouvée dans "Composants".', 'info');
+  }
+  return _reclassified;
+}
+
 function renderArmurie() {
   const tbody  = document.getElementById('arm-tbody');
   const thead  = document.getElementById('arm-thead');
   if (!tbody) return;
 
-  // Migration : armures FPS mal classées en "Composants" (une seule fois par session)
-  if (!_armorMigrationDone) {
+  // Migration auto (une seule fois par session, seulement si le catalogue est chargé)
+  if (!_armorMigrationDone && ARMURIE_CATALOGUE.length > 0) {
     _armorMigrationDone = true;
-    const _armorPieceRe = /\b(armor|armour|helmet|undersuit|torso|backpack|arms|legs)\b/i;
-    let _reclassified = 0;
-    ARMURIE_CATALOGUE.forEach(a => {
-      if (a.tab === 'shipcomp' && _armorPieceRe.test((a.name||'') + ' ' + (a.type||'') + ' ' + (a.loc||''))) {
-        a.tab = 'armor';
-        a.updatedAt = new Date().toISOString();
-        _reclassified++;
-      }
-    });
-    if (_reclassified > 0) {
-      DB.set('telos-armurie-custom', ARMURIE_CATALOGUE).catch(e => console.warn('migration armor save error:', e));
-      toast('Migration effectuée', _reclassified + ' armure(s) reclassée(s) depuis "Composants".', 'info');
-    }
+    migrateArmorFromComponents(true);
   }
 
   const q       = (document.getElementById('arm-search')?.value || '').toLowerCase();
