@@ -2869,6 +2869,29 @@ async function renderRessources() {
   const tbody = document.getElementById('res-tbody');
   if (!tbody) return;
 
+  // Migration : composants industriels (têtes de minage/salvage, modificateurs...)
+  // importés par erreur en tant que ressource brute (ex: "Arbor MH1 Mining Laser"
+  // catégorisé "Minéraux" alors que "Mining Laser Heads" est un équipement de vaisseau).
+  const _industrielRe = /mining.*head|salvage.*head|mining.*mod|salvage.*mod|fuel nozzle|fuel pod|tractor beam|towing beam/;
+  const _legacyIndustriel = RESSOURCE_CATALOGUE.filter(r => r.fromUEXItem && _industrielRe.test((r.desc||'').toLowerCase()));
+  if (_legacyIndustriel.length) {
+    _legacyIndustriel.forEach(r => {
+      const already = ARMURIE_CATALOGUE.find(x => (x.name||'').toLowerCase() === r.name.toLowerCase());
+      if (!already) {
+        ARMURIE_CATALOGUE.push({
+          id: 'arm_migr_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,5),
+          tab: 'industriel', name: r.name, type: r.desc || '', prix: r.buyRef || r.sellRef || 0, loc: '',
+          fromUEXItem: true, addedAt: r.addedAt || new Date().toISOString(), updatedAt: new Date().toISOString()
+        });
+      }
+    });
+    const _movedIds = new Set(_legacyIndustriel.map(r => r.id));
+    RESSOURCE_CATALOGUE = RESSOURCE_CATALOGUE.filter(r => !_movedIds.has(r.id));
+    await DB.set('telos-ressource-catalogue', RESSOURCE_CATALOGUE);
+    await DB.set('telos-armurie-custom', ARMURIE_CATALOGUE);
+    toast('Migration effectuée', _legacyIndustriel.length + ' composant(s) industriel(s) déplacé(s) vers Data Armurie.', 'info');
+  }
+
   // Migration : "Armement", "Équipements" et "Accessoires" n'existent plus côté Data
   // Ressource — toute entrée encore taguée ainsi (anciens sync) est déplacée vers Data
   // Armurie (Armement/Équipements→Armes FPS/Armures, Accessoires→Composants).
@@ -5287,7 +5310,10 @@ async function syncItemsFromUEX() {
       return { target:'armurie', tab:'shipcomp' };
 
     // ── Industriel (onglet "🏭 INDUSTRIEL") : mining/salvage/refuel/towing ──
-    if (/(mining head|mining mod|salvage head|salvage mod|fuel nozzle|fuel pod|tractor beam|towing beam)/.test(c))
+    // Regex souples : "Mining Laser Heads", "Mining Modifiers" etc. ont des mots
+    // insérés entre "mining"/"salvage" et "head"/"mod" — on ne cherche plus une
+    // phrase collée mais juste les deux mots présents dans le bon ordre.
+    if (/mining.*head|salvage.*head|mining.*mod|salvage.*mod|fuel nozzle|fuel pod|tractor beam|towing beam/.test(c))
       return { target:'armurie', tab:'industriel' };
 
     // ── Équipements FPS (protections, tenues) → Armures FPS ──
@@ -5408,6 +5434,75 @@ async function syncItemsFromUEX() {
     if (btn)    btn.textContent = '🔩 SYNC ITEMS UEX';
     if (btnArm) btnArm.textContent = '🔩 SYNC ITEMS UEX';
   }
+}
+
+/* ── Comparaison avec les Blueprints — les catégories y sont choisies manuellement
+   (fiables à 100%), contrairement aux règles de détection par mots-clés du sync UEX.
+   Sert à corriger les mauvais classements et déplacer vers Data Armurie ce qui doit
+   s'y trouver. ── */
+async function crossCheckWithBlueprints() {
+  if (!canManageRoles()) { toast('Accès refusé','','error'); return; }
+  const blueprints = (await DB.get('telos-blueprints')) || [];
+  if (!blueprints.length) { toast('Aucun blueprint','Rien à comparer pour le moment.','error'); return; }
+
+  // Même mapping que importBlueprintsToArmurieData() — cohérence garantie
+  const BP_CAT_TO_TAB = { fps:'fps', armor:'armor', vaisseau:'shipwep', composant:'shipcomp', industriel:'shipcomp' };
+
+  const bpTabByName = {};
+  blueprints.forEach(bp => {
+    if (!bp.name) return;
+    const tab = BP_CAT_TO_TAB[(bp.cat||'').toLowerCase()];
+    if (tab) bpTabByName[bp.name.trim().toLowerCase()] = tab;
+  });
+
+  const now = new Date().toISOString();
+  let movedToArmurie = 0, reclassified = 0;
+
+  // 1) Ressources qui devraient être dans Armurie (nom identique à un blueprint FPS/armor/vaisseau/composant)
+  const toRemoveFromRes = new Set();
+  RESSOURCE_CATALOGUE.forEach(r => {
+    const key = r.name.trim().toLowerCase();
+    const expectedTab = bpTabByName[key];
+    if (!expectedTab) return;
+    toRemoveFromRes.add(r.id);
+    const existingArm = ARMURIE_CATALOGUE.find(x => (x.name||'').toLowerCase() === key);
+    if (existingArm) {
+      existingArm.tab = expectedTab;
+      existingArm.updatedAt = now;
+    } else {
+      ARMURIE_CATALOGUE.push({
+        id: 'arm_bpcheck_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,5),
+        tab: expectedTab, name: r.name, type: r.desc || '', prix: r.buyRef || r.sellRef || 0, loc: '',
+        fromUEX: !!r.fromUEX, fromUEXItem: !!r.fromUEXItem, addedAt: r.addedAt || now, updatedAt: now
+      });
+    }
+    movedToArmurie++;
+  });
+  if (toRemoveFromRes.size) {
+    RESSOURCE_CATALOGUE = RESSOURCE_CATALOGUE.filter(r => !toRemoveFromRes.has(r.id));
+  }
+
+  // 2) Déjà dans Armurie mais dans le mauvais onglet -> reclasser selon le blueprint homonyme
+  ARMURIE_CATALOGUE.forEach(a => {
+    const key = (a.name||'').trim().toLowerCase();
+    const expectedTab = bpTabByName[key];
+    if (expectedTab && a.tab !== expectedTab) {
+      a.tab = expectedTab;
+      a.updatedAt = now;
+      reclassified++;
+    }
+  });
+
+  await DB.set('telos-ressource-catalogue', RESSOURCE_CATALOGUE);
+  await DB.set('telos-armurie-custom', ARMURIE_CATALOGUE);
+  await refreshDatalist();
+  populateResSelect();
+  renderRessources();
+  if (typeof renderArmurie === 'function') renderArmurie();
+
+  const msg = movedToArmurie + ' déplacé(s) vers Armurie, ' + reclassified + ' reclassé(s) dans le bon onglet ('
+    + Object.keys(bpTabByName).length + ' blueprints comparés).';
+  toast('Comparaison Blueprints terminée', msg, 'success');
 }
 
 async function syncFromUEXLocal() {

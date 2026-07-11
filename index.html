@@ -882,6 +882,7 @@ function showLoginWall(){} // stub
           <button onclick="syncItemsFromUEX()" id="btn-uex-items-sync" style="padding:3px 12px;border:1px solid rgba(167,139,250,0.4);background:transparent;color:#a78bfa;font-family:var(--ui);font-size:10px;letter-spacing:1px;cursor:pointer;transition:all 0.15s;white-space:nowrap;" title="Synchroniser les items UEX (armes, armures, collectibles...)">
             🔩 SYNC ITEMS UEX
           </button>
+          <button onclick="crossCheckWithBlueprints()" style="padding:3px 12px;border:1px solid rgba(0,255,163,0.4);background:transparent;color:var(--green);font-family:var(--ui);font-size:10px;letter-spacing:1px;cursor:pointer;white-space:nowrap;" title="Utilise les catégories des blueprints (fiables) pour corriger le classement">🔍 COMPARER BLUEPRINTS</button>
           <span id="uex-sync-status" style="font-size:9px;color:var(--text-dim);font-family:var(--mono);"></span>
         </div>
 
@@ -983,6 +984,7 @@ function showLoginWall(){} // stub
           <button onclick="importBlueprintsToArmurieData()" style="padding:3px 12px;border:1px solid rgba(247,140,30,0.3);background:transparent;color:var(--text-dim);font-family:var(--ui);font-size:10px;letter-spacing:1px;cursor:pointer;white-space:nowrap;">📋 BLUEPRINTS</button>
           <button onclick="clearArmurieCatalogue()" style="padding:3px 12px;border:1px solid rgba(255,68,68,0.4);background:transparent;color:var(--red);font-family:var(--ui);font-size:10px;letter-spacing:1px;cursor:pointer;white-space:nowrap;">🗑 VIDER</button>
           <button onclick="syncItemsFromUEX()" id="btn-uex-items-sync-arm" style="padding:3px 12px;border:1px solid rgba(167,139,250,0.4);background:transparent;color:#a78bfa;font-family:var(--ui);font-size:10px;letter-spacing:1px;cursor:pointer;white-space:nowrap;" title="Synchroniser armes/armures/composants depuis UEX">🔩 SYNC ITEMS UEX</button>
+          <button onclick="crossCheckWithBlueprints()" style="padding:3px 12px;border:1px solid rgba(0,255,163,0.4);background:transparent;color:var(--green);font-family:var(--ui);font-size:10px;letter-spacing:1px;cursor:pointer;white-space:nowrap;" title="Utilise les catégories des blueprints (fiables) pour corriger le classement">🔍 COMPARER BLUEPRINTS</button>
         </div>
         <!-- Table dynamique -->
         <div style="flex:1;overflow-y:auto;padding:0 16px 16px;">
