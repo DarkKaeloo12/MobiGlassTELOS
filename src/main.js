@@ -3996,7 +3996,12 @@ async function toggleObjDone(id) {
   if (!canManageRoles() && !hasDroit('status_objectif')) { toast('Accès refusé','','error'); return; }
   const o = OBJECTIFS.find(x => x.id === id);
   if (!o) return;
-  o.done = !o.done;
+  const willBeDone = !o.done;
+  const confirmMsg = willBeDone
+    ? 'Confirmer : valider l\'objectif suivant comme terminé ?\n\n"'+o.title+'"'
+    : 'Confirmer : réactiver l\'objectif suivant (retour en cours) ?\n\n"'+o.title+'"';
+  if (!confirm(confirmMsg)) return;
+  o.done = willBeDone;
   if (o.done) { o.current = o.target || o.current; o.doneAt = new Date().toISOString(); }
   await saveObjectifs();
   renderObjectifs();
@@ -4834,12 +4839,13 @@ async function setCmdStatus(id, status) {
   if (!canManageRoles() && !hasDroit('status_commande')) { toast('Accès refusé','','error'); return; }
   const c = COMMANDES.find(x=>x.id===id);
   if (!c) return;
+  const statusLabels = {livree:'LIVRÉE ✓', en_cours:'EN COURS ▶', attente:'ROUVERTE ↺ (retour en attente)'};
+  if (!confirm('Confirmer le changement de statut :\n\n"'+c.title+'"\n→ '+(statusLabels[status]||status)+'\n\nCette action est enregistrée dans l\'historique.')) return;
   const oldStatus = c.status;
   c.status = status;
   if (status==='livree') c.deliveredAt = new Date().toISOString();
   await saveCommandes();
   renderCommandes();
-  const statusLabels = {livree:'Livrée ✓', en_cours:'En cours ▶', attente:'Rouverte ↺'};
   pushActivity('📋', 'Commande '+statusLabels[status]+' : '+c.title, '', status==='livree');
   toast('Statut mis à jour', statusLabels[status]||status, status==='livree'?'success':'info');
   // Enregistrer dans l'historique persistant
