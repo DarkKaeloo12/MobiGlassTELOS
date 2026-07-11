@@ -876,6 +876,9 @@ function showLoginWall(){} // stub
           <button class="filter-btn" onclick="setResFilter('autre',this)">○ Autre</button>
           <span id="res-count" style="margin-left:auto;font-size:11px;color:var(--text-dim);font-family:var(--mono);"></span>
           <button onclick="openAddRessourceCustom()" class="btn primary" style="padding:3px 14px;font-size:11px;letter-spacing:1px;">+ AJOUTER</button>
+          <button onclick="cleanupDuplicateRessources()" style="padding:3px 12px;border:1px solid rgba(255,68,68,0.4);background:transparent;color:var(--red);font-family:var(--ui);font-size:10px;letter-spacing:1px;cursor:pointer;white-space:nowrap;" title="Vérifier et supprimer les doublons existants">
+            🧹 DOUBLONS
+          </button>
           <button onclick="syncFromUEX()" id="btn-uex-sync" style="padding:3px 12px;border:1px solid rgba(89,208,255,0.4);background:transparent;color:var(--blue);font-family:var(--ui);font-size:10px;letter-spacing:1px;cursor:pointer;transition:all 0.15s;white-space:nowrap;" title="Synchroniser avec UEXCorp.space">
             ↻ SYNC UEX
           </button>

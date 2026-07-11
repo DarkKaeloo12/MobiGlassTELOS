@@ -3008,6 +3008,42 @@ async function deleteRessourceCustom(id, name) {
   toast('Ressource supprimée', name, 'info');
 }
 
+async function cleanupDuplicateRessources() {
+  if (!canManageRoles()) { toast('Accès refusé','','error'); return; }
+  const groups = {};
+  RESSOURCE_CATALOGUE.forEach(r => {
+    const key = (r.name || '').trim().toLowerCase();
+    if (!key) return;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  });
+
+  const dupKeys = Object.keys(groups).filter(k => groups[k].length > 1);
+  if (!dupKeys.length) { toast('Aucun doublon', 'Le catalogue est propre.', 'success'); return; }
+
+  let removedCount = 0;
+  const kept = [];
+  Object.values(groups).forEach(list => {
+    if (list.length === 1) { kept.push(list[0]); return; }
+    // Garde en priorité : l'entrée UEX la plus récemment mise à jour, sinon la première créée
+    list.sort((a,b) => {
+      if (!!b.fromUEX !== !!a.fromUEX) return (b.fromUEX?1:0) - (a.fromUEX?1:0);
+      return new Date(b.updatedAt||b.addedAt||0) - new Date(a.updatedAt||a.addedAt||0);
+    });
+    kept.push(list[0]);
+    removedCount += list.length - 1;
+  });
+
+  if (!confirm(dupKeys.length + ' ressource(s) en double détectée(s) (' + removedCount + ' entrée(s) à supprimer).\nGarder la version la plus complète de chaque et supprimer le reste ?')) return;
+
+  RESSOURCE_CATALOGUE = kept;
+  await DB.set('telos-ressource-catalogue', RESSOURCE_CATALOGUE);
+  await refreshDatalist();
+  populateResSelect();
+  renderRessources();
+  toast('Doublons supprimés', removedCount + ' entrée(s) retirée(s).', 'success');
+}
+
 function goToRessources(el) {
   if (!canManageRoles()) { toast('Acces refuse','Reserve aux Admins et Gestionnaires.','error'); return; }
   goPanel('ressources', el);
