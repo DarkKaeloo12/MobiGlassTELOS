@@ -1431,18 +1431,11 @@ function showLoginWall(){} // stub
       <div class="form-field">
         <label class="form-lbl">Ressource <span class="req">*</span></label>
         <!-- Sélecteur depuis le catalogue Corp (filtré par catégorie) -->
-        <select class="form-input" id="ps-res-select" style="height:auto;padding:9px 11px;margin-bottom:6px;" onchange="onResSelectChange(this)">
+        <select class="form-input" id="ps-res-select" style="height:auto;padding:9px 11px;" onchange="onResSelectChange(this)">
           <option value="">— Catalogue Corp TELOS —</option>
         </select>
-        <!-- Ou saisie manuelle -->
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-          <div style="flex:1;height:1px;background:var(--border);"></div>
-          <span style="font-size:10px;color:var(--text-dim);letter-spacing:1px;white-space:nowrap;">OU SAISIR MANUELLEMENT</span>
-          <div style="flex:1;height:1px;background:var(--border);"></div>
-        </div>
-        <input class="form-input" type="text" id="ps-res" placeholder="ex: Quantanium, Pisces, Rifle..." list="ps-datalist" autocomplete="off"
-          oninput="onResInputChange(this.value)">
-        <div id="ps-uex-hint" style="display:none;margin-top:4px;padding:4px 8px;font-size:10px;font-family:var(--mono);border-left:2px solid;"></div>
+        <!-- Champ caché : conserve le nom sélectionné, utilisé à l'enregistrement -->
+        <input type="hidden" id="ps-res">
       </div>
 
       <!-- Quantité + Unité -->

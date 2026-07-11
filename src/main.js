@@ -7032,17 +7032,7 @@ function onResSelectChange(sel) {
     autofillPrices(val);
   } else {
     resInput.value = '';
-    document.getElementById('ps-uex-hint').style.display = 'none';
   }
-}
-
-function onResInputChange(val) {
-  // Désélectionner le select si l'utilisateur tape manuellement
-  const sel = document.getElementById('ps-res-select');
-  if (sel && sel.value !== val) sel.value = '';
-  checkUexName(val);
-  // Auto-renseigner les prix si la ressource correspond au catalogue
-  autofillPrices(val);
 }
 
 function ncSetRewardType(type) {
@@ -7150,7 +7140,7 @@ async function openPlayerStock(type){
   const modalTitle = document.getElementById('ps-modal-title');
   if (modalTitle) modalTitle.textContent = type === 'perso' ? '🎒 Ajouter — Stock Personnel' : '📦 Ajouter — Stock TELOS';
   document.getElementById('ps-overlay').classList.add('open');
-  setTimeout(()=>document.getElementById('ps-res').focus(),80);
+  setTimeout(()=>document.getElementById('ps-res-select').focus(),80);
 }
 function closePSModal(){ document.getElementById('ps-overlay').classList.remove('open'); }
 
