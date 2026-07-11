@@ -2923,8 +2923,89 @@ async function renderRessources() {
           + '</td>';
       })()
       
+      +'<td onclick="event.stopPropagation()"><div style="display:flex;gap:4px;">'
+        +'<button class="btn sm" onclick="openAddRessourceCustom(\''+r.id+'\')" style="border-color:var(--orange);color:var(--orange);" title="Modifier">✏</button>'
+        +'<button class="btn danger sm" onclick="deleteRessourceCustom(\''+r.id+'\',\''+esc(r.name).replace(/'/g,"\\'")+'\')" title="Supprimer">✕</button>'
+        +'</div></td>'
       +'</tr>';
   }).join('');
+}
+
+function openAddRessourceCustom(editId) {
+  if (!canManageRoles()) { toast('Accès refusé','Réservé aux Admins et Gestionnaires.','error'); return; }
+  _editResCustomId = editId || null;
+  const title = document.getElementById('res-custom-title');
+  const nameEl = document.getElementById('res-custom-name');
+  const catEl = document.getElementById('res-custom-cat');
+  const qEl = document.getElementById('res-custom-quality');
+  const buyEl = document.getElementById('res-custom-buy');
+  const sellEl = document.getElementById('res-custom-sell');
+  const descEl = document.getElementById('res-custom-desc');
+  if (editId) {
+    const r = RESSOURCE_CATALOGUE.find(x=>x.id===editId);
+    if (!r) return;
+    title.textContent = '✏ MODIFIER LA RESSOURCE';
+    nameEl.value = r.name || '';
+    catEl.value = r.cat || 'autre';
+    qEl.value = r.quality || '';
+    buyEl.value = r.buyMin || r.buyRef || '';
+    sellEl.value = r.sellMax || r.sellRef || '';
+    descEl.value = r.desc || '';
+  } else {
+    title.textContent = '◈ AJOUTER UNE RESSOURCE';
+    nameEl.value = ''; catEl.value = 'autre'; qEl.value = '';
+    buyEl.value = ''; sellEl.value = ''; descEl.value = '';
+  }
+  document.getElementById('res-custom-overlay').classList.add('open');
+}
+
+function closeAddRessourceCustom() {
+  document.getElementById('res-custom-overlay').classList.remove('open');
+  _editResCustomId = null;
+}
+
+async function saveRessourceCustom() {
+  const name = document.getElementById('res-custom-name').value.trim();
+  if (!name) { toast('Nom requis','Indiquez un nom de ressource.','error'); return; }
+  const cat = document.getElementById('res-custom-cat').value;
+  const quality = document.getElementById('res-custom-quality').value;
+  const buyMin = Number(document.getElementById('res-custom-buy').value) || 0;
+  const sellMax = Number(document.getElementById('res-custom-sell').value) || 0;
+  const desc = document.getElementById('res-custom-desc').value.trim();
+  const now = new Date().toISOString();
+
+  if (_editResCustomId) {
+    const r = RESSOURCE_CATALOGUE.find(x=>x.id===_editResCustomId);
+    if (!r) { toast('Erreur','Ressource introuvable.','error'); return; }
+    r.name = name; r.cat = cat; r.quality = quality;
+    r.buyMin = buyMin; r.buyRef = buyMin; r.sellMax = sellMax; r.sellRef = sellMax;
+    r.desc = desc; r.updatedAt = now;
+  } else {
+    const dup = RESSOURCE_CATALOGUE.find(x=>x.name.toLowerCase()===name.toLowerCase());
+    if (dup) { toast('Déjà existant','Une ressource avec ce nom existe déjà.','error'); return; }
+    RESSOURCE_CATALOGUE.push({
+      id: 'r_custom_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+      name, cat, quality, buyRef: buyMin, sellRef: sellMax, buyMin, sellMax,
+      desc, fromUEX: false, addedAt: now, updatedAt: now
+    });
+  }
+  await DB.set('telos-ressource-catalogue', RESSOURCE_CATALOGUE);
+  closeAddRessourceCustom();
+  await refreshDatalist();
+  populateResSelect();
+  renderRessources();
+  toast('Ressource enregistrée', name, 'success');
+}
+
+async function deleteRessourceCustom(id, name) {
+  if (!canManageRoles()) { toast('Accès refusé','','error'); return; }
+  if (!confirm('Supprimer "'+name+'" du catalogue ?\nAttention : elle disparaîtra aussi des stocks existants la référençant.')) return;
+  RESSOURCE_CATALOGUE = RESSOURCE_CATALOGUE.filter(x=>x.id!==id);
+  await DB.set('telos-ressource-catalogue', RESSOURCE_CATALOGUE);
+  await refreshDatalist();
+  populateResSelect();
+  renderRessources();
+  toast('Ressource supprimée', name, 'info');
 }
 
 function goToRessources(el) {
@@ -5215,6 +5296,7 @@ var _bpFilter = 'all';
 var _bpCorpoMode = false;
 var _mesCatFilter = 'all';
 var _editBpId = null;
+var _editResCustomId = null;
 var _bpIngredients = [];
 
 var BP_CAT_LABELS = {

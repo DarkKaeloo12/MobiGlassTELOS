@@ -873,6 +873,7 @@ function showLoginWall(){} // stub
           <button class="filter-btn" onclick="setResFilter('equipements',this)">🛡 Équipements</button>
           <button class="filter-btn" onclick="setResFilter('armement',this)">⚔ Armement</button>
           <span id="res-count" style="margin-left:auto;font-size:11px;color:var(--text-dim);font-family:var(--mono);"></span>
+          <button onclick="openAddRessourceCustom()" class="btn primary" style="padding:3px 14px;font-size:11px;letter-spacing:1px;">+ AJOUTER</button>
           <button onclick="syncFromUEX()" id="btn-uex-sync" style="padding:3px 12px;border:1px solid rgba(89,208,255,0.4);background:transparent;color:var(--blue);font-family:var(--ui);font-size:10px;letter-spacing:1px;cursor:pointer;transition:all 0.15s;white-space:nowrap;" title="Synchroniser avec UEXCorp.space">
             ↻ SYNC UEX
           </button>
@@ -888,9 +889,68 @@ function showLoginWall(){} // stub
               <th>Qualité par défaut</th>
               <th>Achat min</th>
               <th>Vente max</th>
+              <th>Action</th>
               </tr></thead>
             <tbody id="res-tbody"></tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Modal ajout/édition ressource personnalisée -->
+      <div class="overlay" id="res-custom-overlay" onclick="if(event.target===this)closeAddRessourceCustom()">
+        <div class="modal" style="max-width:440px;">
+          <div class="modal-head">
+            <span class="modal-title" id="res-custom-title">◈ AJOUTER UNE RESSOURCE</span>
+            <button class="modal-close" onclick="closeAddRessourceCustom()">✕</button>
+          </div>
+          <div class="modal-body" style="gap:14px;">
+            <div class="form-field">
+              <label class="form-lbl">Nom <span class="req">*</span></label>
+              <input class="form-input" type="text" id="res-custom-name" placeholder="Ex: Dents de Valkkar irradiées">
+            </div>
+            <div class="form-field">
+              <label class="form-lbl">Catégorie</label>
+              <select class="form-input" id="res-custom-cat">
+                <option value="mineral">⛏ Minéraux</option>
+                <option value="salvage">🔧 Salvage</option>
+                <option value="ressources">📦 Ressources</option>
+                <option value="equipements">🛡 Équipements</option>
+                <option value="armement">⚔ Armement</option>
+                <option value="accessoires">🎒 Accessoires</option>
+                <option value="autre" selected>○ Autre</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label class="form-lbl">Qualité par défaut</label>
+              <select class="form-input" id="res-custom-quality">
+                <option value="">— Aucune —</option>
+                <option value="mediocre">Médiocre</option>
+                <option value="basique">Basique</option>
+                <option value="acceptable">Acceptable</option>
+                <option value="honnete">Honnête</option>
+                <option value="moyenne">Moyenne</option>
+                <option value="haute">Haute</option>
+              </select>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div class="form-field">
+                <label class="form-lbl">Prix achat min (aUEC)</label>
+                <input class="form-input" type="number" id="res-custom-buy" placeholder="0" min="0">
+              </div>
+              <div class="form-field">
+                <label class="form-lbl">Prix vente max (aUEC)</label>
+                <input class="form-input" type="number" id="res-custom-sell" placeholder="0" min="0">
+              </div>
+            </div>
+            <div class="form-field">
+              <label class="form-lbl">Description</label>
+              <textarea class="form-input" id="res-custom-desc" rows="2" placeholder="Optionnel — où la trouver, notes..."></textarea>
+            </div>
+          </div>
+          <div class="modal-foot">
+            <button class="btn" onclick="closeAddRessourceCustom()">Annuler</button>
+            <button class="btn success" onclick="saveRessourceCustom()">💾 ENREGISTRER</button>
+          </div>
         </div>
       </div>
 
