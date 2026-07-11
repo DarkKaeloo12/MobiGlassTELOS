@@ -2844,8 +2844,7 @@ var RESSOURCE_CATALOGUE = [];
 var _resCatFilter = 'all';
 
 var CAT_LABELS = {
-  mineral:'⛏ Minéraux', salvage:'🔧 Salvage', ressources:'📦 Ressources',
-  equipements:'🛡 Équipements', accessoires:'🎒 Accessoires', autre:'○ Autre'
+  mineral:'⛏ Minéraux', salvage:'🔧 Salvage', ressources:'📦 Ressources', autre:'○ Autre'
 };
 
 async function loadRessourceCatalogue() {
@@ -2870,24 +2869,26 @@ async function renderRessources() {
   const tbody = document.getElementById('res-tbody');
   if (!tbody) return;
 
-  // Migration : "Armement" n'existe plus côté Data Ressource — toute entrée
-  // encore taguée ainsi (anciens sync) est déplacée vers Data Armurie (onglet Armes FPS).
-  const _legacyArmement = RESSOURCE_CATALOGUE.filter(r => r.cat === 'armement');
-  if (_legacyArmement.length) {
-    _legacyArmement.forEach(r => {
+  // Migration : "Armement", "Équipements" et "Accessoires" n'existent plus côté Data
+  // Ressource — toute entrée encore taguée ainsi (anciens sync) est déplacée vers Data
+  // Armurie (Armement/Équipements→Armes FPS/Armures, Accessoires→Composants).
+  const _legacyTabMap = { armement:'fps', equipements:'armor', accessoires:'shipcomp' };
+  const _legacyItems = RESSOURCE_CATALOGUE.filter(r => _legacyTabMap[r.cat]);
+  if (_legacyItems.length) {
+    _legacyItems.forEach(r => {
       const already = ARMURIE_CATALOGUE.find(x => (x.name||'').toLowerCase() === r.name.toLowerCase());
       if (!already) {
         ARMURIE_CATALOGUE.push({
           id: 'arm_migr_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,5),
-          tab: 'fps', name: r.name, type: r.desc || '', prix: r.buyRef || r.sellRef || 0, loc: '',
+          tab: _legacyTabMap[r.cat], name: r.name, type: r.desc || '', prix: r.buyRef || r.sellRef || 0, loc: '',
           fromUEX: !!r.fromUEX, fromUEXItem: !!r.fromUEXItem, addedAt: r.addedAt || new Date().toISOString(), updatedAt: new Date().toISOString()
         });
       }
     });
-    RESSOURCE_CATALOGUE = RESSOURCE_CATALOGUE.filter(r => r.cat !== 'armement');
+    RESSOURCE_CATALOGUE = RESSOURCE_CATALOGUE.filter(r => !_legacyTabMap[r.cat]);
     await DB.set('telos-ressource-catalogue', RESSOURCE_CATALOGUE);
     await DB.set('telos-armurie-custom', ARMURIE_CATALOGUE);
-    toast('Migration effectuée', _legacyArmement.length + ' ressource(s) "Armement" déplacée(s) vers Data Armurie.', 'info');
+    toast('Migration effectuée', _legacyItems.length + ' ressource(s) déplacée(s) vers Data Armurie.', 'info');
   }
   if (!canManageRoles()) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-dim);">Acces reserve aux Admins et Gestionnaires.</td></tr>';
@@ -5106,8 +5107,8 @@ async function syncFromUEX() {
       'Agricultural':'ressources','Food':'ressources','Medical':'ressources',
       'Drug':'ressources','Liquid':'ressources',
       'Weapon':'__armurie_fps','Ammunition':'__armurie_fps',
-      'Armor':'equipements','Component':'equipements','Electronics':'equipements',
-      'Consumable':'accessoires','Personal':'accessoires',
+      'Armor':'__armurie_armor','Component':'__armurie_shipcomp','Electronics':'__armurie_shipcomp',
+      'Consumable':'__armurie_shipcomp','Personal':'__armurie_shipcomp',
       'Other':'autre','Data':'autre',
     };
 
@@ -5128,8 +5129,9 @@ async function syncFromUEX() {
       const sellMax = pEntry.sell || sellRef;  // max vente  (ou fallback)
       const terminals = pEntry.terminals || 0;
 
-      // Weapon/Ammunition → Data Armurie (onglet Armes FPS), pas Data Ressource
-      if (cat === '__armurie_fps') {
+      // Weapon/Ammunition/Armor/Component/Electronics/Consumable/Personal → Data Armurie, pas Data Ressource
+      if (typeof cat === 'string' && cat.startsWith('__armurie_')) {
+        const armTab = cat.replace('__armurie_', '');
         const existingArm = ARMURIE_CATALOGUE.find(x => (x.name||'').toLowerCase() === name.toLowerCase());
         if (existingArm) {
           if (buyMin > 0) existingArm.prix = buyMin;
@@ -5138,7 +5140,7 @@ async function syncFromUEX() {
         } else {
           ARMURIE_CATALOGUE.push({
             id: 'arm_uex_' + (cid || Date.now() + '_' + Math.random().toString(36).slice(2,5)),
-            tab: 'fps', name, type: c.kind || '', prix: buyMin || sellMax || 0, loc: '',
+            tab: armTab, name, type: c.kind || '', prix: buyMin || sellMax || 0, loc: '',
             fromUEX: true, uexId: cid, addedAt: now, updatedAt: now
           });
         }
@@ -5250,13 +5252,11 @@ async function syncItemsFromUEX() {
   // Correspondance section/catégorie UEX -> catégorie NEXORA
   function mapItemCategory(cat) {
     const c = ((cat.section||'') + ' ' + (cat.name||'')).toLowerCase();
-    // Armes/armures : normalement déjà interceptées par classifyCategory() vers Data Armurie.
-    // Si jamais une catégorie passe au travers, on la range en "Autre" plutôt qu'en "Armement"
-    // (cette catégorie n'existe plus côté Data Ressource).
+    // Armes/armures/équipements/accessoires : normalement déjà interceptées par
+    // classifyCategory() vers Data Armurie. Ce qui reste ici est une vraie ressource
+    // (minerai, salvage, collectible, consommable...).
     if (c.includes('salvage')) return 'salvage';
     if (c.includes('mining')) return 'mineral';
-    if (c.includes('gadget') || c.includes('tool') || c.includes('utility') || c.includes('attachment') || c.includes('cooler'))
-      return 'accessoires';
     if (c.includes('harvestable') || c.includes('collectible') || c.includes('flair') || c.includes('souvenir') || c.includes('gem'))
       return 'ressources';
     return 'autre';
@@ -5289,6 +5289,14 @@ async function syncItemsFromUEX() {
     // ── Industriel (onglet "🏭 INDUSTRIEL") : mining/salvage/refuel/towing ──
     if (/(mining head|mining mod|salvage head|salvage mod|fuel nozzle|fuel pod|tractor beam|towing beam)/.test(c))
       return { target:'armurie', tab:'industriel' };
+
+    // ── Équipements FPS (protections, tenues) → Armures FPS ──
+    if (/(clothing|hat|eyewear|gloves|jacket|shirt|jumpsuit|legwear|footwear|medical supplies|audio visual)/.test(c))
+      return { target:'armurie', tab:'armor' };
+
+    // ── Accessoires (gadgets, outils, attachements, mobiglass) → Composants ──
+    if (/(gadget|tool|utility|attachment|hacking chip|flare|mobiglass|container)/.test(c))
+      return { target:'armurie', tab:'shipcomp' };
 
     // ── Sinon → reste une ressource classique (collectibles, consommables, etc.) ──
     return { target:'ressource', cat: mapItemCategory(cat) };
@@ -5416,7 +5424,7 @@ async function syncFromUEXLocal() {
     {name:'Aslarite',          cat:'mineral',    buyRef:4400,   sellRef:6200},
     {name:'Astatine',          cat:'mineral',    buyRef:2900,   sellRef:4200},
     {name:'Atlasium',          cat:'mineral',    buyRef:79000,  sellRef:108000},
-    {name:'Audio Visual Equipment',cat:'equipements',buyRef:29000,sellRef:43000},
+    {name:'Audio Visual Equipment',cat:'ressources',buyRef:29000,sellRef:43000},
     {name:'Altruciatoxin',     cat:'ressources', buyRef:5400,   sellRef:7800},
     {name:'Beradom',           cat:'mineral',    buyRef:122000, sellRef:172000},
     {name:'Beryl',             cat:'mineral',    buyRef:16800,  sellRef:24000},
@@ -5429,8 +5437,8 @@ async function syncFromUEXLocal() {
     {name:'CK13 Gid Seed Blend',cat:'ressources',buyRef:440,   sellRef:640},
     {name:'Chlorine',          cat:'mineral',    buyRef:1200,   sellRef:1800},
     {name:'Cobalt',            cat:'mineral',    buyRef:17500,  sellRef:25000},
-    {name:'Compboard',         cat:'equipements',buyRef:24500,  sellRef:36000},
-    {name:'Construction Materials',cat:'equipements',buyRef:10500,sellRef:15500},
+    {name:'Compboard',         cat:'ressources',buyRef:24500,  sellRef:36000},
+    {name:'Construction Materials',cat:'ressources',buyRef:10500,sellRef:15500},
     {name:'Copper',            cat:'mineral',    buyRef:3100,   sellRef:4500},
     {name:'Corundum',          cat:'mineral',    buyRef:3100,   sellRef:4500},
     {name:'DCSR2',             cat:'ressources', buyRef:1000,   sellRef:1500},
@@ -5440,12 +5448,12 @@ async function syncFromUEXLocal() {
     {name:'Distilled Spirits', cat:'ressources', buyRef:1600,   sellRef:2400},
     {name:'Dolivine',          cat:'mineral',    buyRef:122000, sellRef:178000},
     {name:'Dymantium',         cat:'mineral',    buyRef:19000,  sellRef:28000},
-    {name:'Dynaflex',          cat:'equipements',buyRef:1600,   sellRef:2400},
+    {name:'Dynaflex',          cat:'ressources',buyRef:1600,   sellRef:2400},
     {name:'Etam',              cat:'mineral',    buyRef:19500,  sellRef:28500},
     {name:'Feynmaline',        cat:'mineral',    buyRef:285000, sellRef:415000},
     {name:'Fresh Food',        cat:'ressources', buyRef:21000,  sellRef:30500},
     {name:'Fluorine',          cat:'mineral',    buyRef:1100,   sellRef:1600},
-    {name:'Foam',              cat:'equipements',buyRef:5300,   sellRef:7700},
+    {name:'Foam',              cat:'ressources',buyRef:5300,   sellRef:7700},
     {name:'Gasping Weevil Eggs',cat:'ressources',buyRef:53000,  sellRef:77000},
     {name:'Glacosite',         cat:'mineral',    buyRef:82000,  sellRef:120000},
     {name:'Gold',              cat:'mineral',    buyRef:25000,  sellRef:37000},
@@ -5467,13 +5475,13 @@ async function syncFromUEXLocal() {
     {name:'Luminalia Gift',    cat:'autre',      buyRef:4250000,sellRef:6200000},
     {name:'Marok Gem',         cat:'ressources', buyRef:42000,  sellRef:61000},
     {name:'Maze',              cat:'ressources', buyRef:2400,   sellRef:3500},
-    {name:'Medical Supplies',  cat:'equipements',buyRef:12500,  sellRef:18500},
+    {name:'Medical Supplies',  cat:'ressources',buyRef:12500,  sellRef:18500},
     {name:'Mercury',           cat:'mineral',    buyRef:9200,   sellRef:13500},
     {name:'Methane',           cat:'mineral',    buyRef:1600,   sellRef:2400},
     {name:'Neograph',          cat:'mineral',    buyRef:7600,   sellRef:11000},
     {name:'Neon',              cat:'mineral',    buyRef:5000,   sellRef:7300},
     {name:'Nitrogen',          cat:'mineral',    buyRef:2600,   sellRef:3800},
-    {name:'Omnapoxy',          cat:'equipements',buyRef:7000,   sellRef:10200},
+    {name:'Omnapoxy',          cat:'ressources',buyRef:7000,   sellRef:10200},
     {name:'Organics',          cat:'ressources', buyRef:1100,   sellRef:1700},
     {name:'Osoian Hides',      cat:'ressources', buyRef:42000,  sellRef:61000},
     {name:'Ouratite',          cat:'mineral',    buyRef:36000,  sellRef:52000},
@@ -7182,7 +7190,7 @@ function populateResSelect() {
   if (!sel) return;
 
   // Grouper par catégorie
-  const CAT_ORDER = ['mineral','salvage','ressources','equipements','accessoires','autre'];
+  const CAT_ORDER = ['mineral','salvage','ressources','autre'];
   const groups = {};
   RESSOURCE_CATALOGUE.forEach(r => {
     const cat = r.cat || 'autre';
