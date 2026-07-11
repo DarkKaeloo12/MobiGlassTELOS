@@ -879,8 +879,11 @@ function showLoginWall(){} // stub
           <button onclick="cleanupDuplicateRessources()" style="padding:3px 12px;border:1px solid rgba(255,68,68,0.4);background:transparent;color:var(--red);font-family:var(--ui);font-size:10px;letter-spacing:1px;cursor:pointer;white-space:nowrap;" title="Vérifier et supprimer les doublons existants">
             🧹 DOUBLONS
           </button>
-          <button onclick="syncFromUEX()" id="btn-uex-sync" style="padding:3px 12px;border:1px solid rgba(89,208,255,0.4);background:transparent;color:var(--blue);font-family:var(--ui);font-size:10px;letter-spacing:1px;cursor:pointer;transition:all 0.15s;white-space:nowrap;" title="Synchroniser avec UEXCorp.space">
+          <button onclick="syncFromUEX()" id="btn-uex-sync" style="padding:3px 12px;border:1px solid rgba(89,208,255,0.4);background:transparent;color:var(--blue);font-family:var(--ui);font-size:10px;letter-spacing:1px;cursor:pointer;transition:all 0.15s;white-space:nowrap;" title="Synchroniser avec UEXCorp.space (commodités)">
             ↻ SYNC UEX
+          </button>
+          <button onclick="syncItemsFromUEX()" id="btn-uex-items-sync" style="padding:3px 12px;border:1px solid rgba(167,139,250,0.4);background:transparent;color:#a78bfa;font-family:var(--ui);font-size:10px;letter-spacing:1px;cursor:pointer;transition:all 0.15s;white-space:nowrap;" title="Synchroniser les items UEX (armes, armures, collectibles...)">
+            🔩 SYNC ITEMS UEX
           </button>
           <span id="uex-sync-status" style="font-size:9px;color:var(--text-dim);font-family:var(--mono);"></span>
         </div>

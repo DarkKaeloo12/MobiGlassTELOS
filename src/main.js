@@ -2905,7 +2905,7 @@ async function renderRessources() {
     const st = stockStats[key]||{qty:0,partners:new Set()};
     // margin calculée dans le rendu td ci-dessous
     return '<tr>'
-      +'<td style="font-weight:700;color:var(--text-bright);">◈ '+esc(r.name)+(r.fromUEX?'<span style="font-size:8px;margin-left:5px;padding:1px 5px;border:1px solid rgba(89,208,255,0.4);color:var(--blue);letter-spacing:1px;">UEX</span>':'')+(r.desc?'<div style="font-size:10px;color:var(--text-dim);">'+esc(r.desc)+'</div>':'')+'</td>'
+      +'<td style="font-weight:700;color:var(--text-bright);">◈ '+esc(r.name)+(r.fromUEX?'<span style="font-size:8px;margin-left:5px;padding:1px 5px;border:1px solid rgba(89,208,255,0.4);color:var(--blue);letter-spacing:1px;">UEX</span>':'')+(r.fromUEXItem?'<span style="font-size:8px;margin-left:5px;padding:1px 5px;border:1px solid rgba(167,139,250,0.4);color:#a78bfa;letter-spacing:1px;">UEX ITEM</span>':'')+(r.desc?'<div style="font-size:10px;color:var(--text-dim);">'+esc(r.desc)+'</div>':'')+'</td>'
       +'<td><span style="font-size:11px;padding:2px 7px;border:1px solid var(--border);color:var(--text-dim);">'+(CAT_LABELS[r.cat]||r.cat)+'</span></td>'
       +'<td>'+qBadge(r.quality)+'</td>'
       +(()=>{
@@ -4969,6 +4969,7 @@ async function checkCmdStock(id) {
 ════════════════════════════════════════════════════════════ */
 var UEX_API_BASE = 'https://api.uexcorp.uk/2.0';
 var _uexSyncRunning = false;
+var _uexItemsSyncRunning = false;
 
 async function syncFromUEX() {
   if (_uexSyncRunning) return;
@@ -5162,6 +5163,145 @@ async function syncFromUEX() {
 }
 
 // Fallback avec données embarquées (si CORS bloque)
+/* ── Sync UEX /items — couvre armes, armures, collectibles et autres items
+   absents du système /commodities (ex: Irradiated Valakkar Fang, Perles...) ── */
+async function syncItemsFromUEX() {
+  if (_uexItemsSyncRunning) return;
+  if (!canManageRoles()) { toast('Accès refusé','','error'); return; }
+
+  _uexItemsSyncRunning = true;
+  const btn    = document.getElementById('btn-uex-items-sync');
+  const status = document.getElementById('uex-sync-status');
+  if (btn)    btn.textContent = '⏳ Sync...';
+  if (status) status.textContent = 'Connexion à UEXCorp API (items)...';
+
+  const BEARER   = '0b7797b0ee37052d9c8dfe493305b7a2d1ab8f43';
+  const API_BASE = 'https://api.uexcorp.uk/2.0';
+
+  async function apiFetch(endpoint) {
+    const url = API_BASE + '/' + endpoint;
+    const headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + BEARER };
+    const strategies = [
+      () => fetch(url, { headers }),
+      () => fetch('https://corsproxy.io/?' + encodeURIComponent(url), { headers }),
+      () => fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url)),
+      () => fetch('https://corsproxy.io/?' + encodeURIComponent(url)),
+    ];
+    let lastErr;
+    for (const attempt of strategies) {
+      try {
+        const r = await attempt();
+        if (!r.ok) { if (r.status === 429) throw new Error('429'); throw new Error('HTTP ' + r.status); }
+        const j = await r.json();
+        if (j && j.status === 'ok' && j.data !== undefined) return j.data;
+        if (Array.isArray(j)) return j;
+        if (j && typeof j === 'object' && !j.status) return j;
+        throw new Error(j?.message || 'Réponse invalide');
+      } catch(e) {
+        lastErr = e;
+        if (e.message === '429') { await new Promise(r => setTimeout(r, 2000)); }
+      }
+    }
+    throw lastErr || new Error('Échec toutes stratégies');
+  }
+
+  // Correspondance section/catégorie UEX -> catégorie NEXORA
+  function mapItemCategory(cat) {
+    const c = ((cat.section||'') + ' ' + (cat.name||'')).toLowerCase();
+    if (c.includes('weapon') || c.includes('ballistic') || c.includes('laser') || c.includes('ammo') || c.includes('missile'))
+      return 'armement';
+    if (c.includes('armor') || c.includes('armour') || c.includes('undersuit') || c.includes('helmet') || c.includes('clothing'))
+      return 'equipements';
+    if (c.includes('salvage')) return 'salvage';
+    if (c.includes('mining')) return 'mineral';
+    if (c.includes('gadget') || c.includes('tool') || c.includes('utility') || c.includes('attachment') || c.includes('cooler'))
+      return 'accessoires';
+    if (c.includes('harvestable') || c.includes('collectible') || c.includes('flair') || c.includes('souvenir') || c.includes('gem'))
+      return 'ressources';
+    return 'autre';
+  }
+
+  try {
+    if (status) status.textContent = 'Récupération des catégories d\'items...';
+    const categories = await apiFetch('categories?type=item');
+    if (!categories || !categories.length) throw new Error('Aucune catégorie reçue');
+
+    let added = 0, updated = 0, done = 0;
+    const now = new Date().toISOString();
+
+    for (const cat of categories) {
+      done++;
+      if (status) status.textContent = 'Catégorie ' + done + '/' + categories.length + ' — ' + (cat.name||'') + '...';
+
+      let items = [];
+      try { items = await apiFetch('items?id_category=' + cat.id); } catch(e) {}
+      if (!Array.isArray(items) || !items.length) { await new Promise(r=>setTimeout(r,120)); continue; }
+
+      let prices = [];
+      try { prices = await apiFetch('items_prices?id_category=' + cat.id); } catch(e) {}
+      const priceMap = {};
+      if (Array.isArray(prices)) {
+        prices.forEach(p => {
+          const iid = p.id_item;
+          if (!iid) return;
+          if (!priceMap[iid]) priceMap[iid] = { buys: [], sells: [] };
+          const buy  = Number(p.price_buy_min  || p.price_buy  || 0);
+          const sell = Number(p.price_sell_max || p.price_sell || 0);
+          if (buy  > 0) priceMap[iid].buys.push(buy);
+          if (sell > 0) priceMap[iid].sells.push(sell);
+        });
+      }
+
+      const nexoraCat = mapItemCategory(cat);
+
+      items.forEach(it => {
+        const name = (it.name || '').trim();
+        if (!name) return;
+        const pm = priceMap[it.id] || { buys: [], sells: [] };
+        const buyMin  = pm.buys.length  ? Math.min(...pm.buys)  : 0;
+        const sellMax = pm.sells.length ? Math.max(...pm.sells) : 0;
+
+        const existing = RESSOURCE_CATALOGUE.find(x => x.name.toLowerCase() === name.toLowerCase());
+        if (existing) {
+          if (buyMin  > 0) { existing.buyRef  = buyMin;  existing.buyMin  = buyMin; }
+          if (sellMax > 0) { existing.sellRef = sellMax; existing.sellMax = sellMax; }
+          existing.fromUEXItem = true;
+          existing.uexItemId   = it.id;
+          existing.updatedAt   = now;
+          updated++;
+        } else {
+          RESSOURCE_CATALOGUE.push({
+            id: 'r_uexitem_' + it.id + '_' + Date.now().toString(36),
+            name, cat: nexoraCat, quality: '',
+            buyRef: buyMin, sellRef: sellMax, buyMin, sellMax,
+            desc: it.category || cat.name || '',
+            fromUEXItem: true, uexItemId: it.id, addedAt: now, updatedAt: now
+          });
+          added++;
+        }
+      });
+
+      await new Promise(r => setTimeout(r, 150));
+    }
+
+    await DB.set('telos-ressource-catalogue', RESSOURCE_CATALOGUE);
+    await DB.set('telos-last-uex-items-sync', String(Date.now()));
+    await refreshDatalist();
+    populateResSelect();
+    renderRessources();
+
+    const msg = added + ' ajoutés, ' + updated + ' mis à jour (' + done + ' catégories UEX items)';
+    if (status) status.textContent = '✓ ' + msg;
+    toast('Items UEX synchronisés', msg, 'success');
+  } catch(e) {
+    toast('Erreur de synchronisation', e.message || 'Échec de la synchronisation.', 'error');
+    if (status) status.textContent = '⚠ Échec';
+  } finally {
+    _uexItemsSyncRunning = false;
+    if (btn) btn.textContent = '🔩 SYNC ITEMS UEX';
+  }
+}
+
 async function syncFromUEXLocal() {
   const now = new Date().toISOString();
   const LOCAL_DATA = [
