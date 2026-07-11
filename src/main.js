@@ -1836,9 +1836,21 @@ async function loadHistorique() {
 
 async function pushHistorique(entry) {
   if (!HISTORIQUE_DATA) HISTORIQUE_DATA = [];
+  if (!entry.id) entry.id = 'hist_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
   HISTORIQUE_DATA.unshift(entry);
   await DB.set('telos-historique', HISTORIQUE_DATA);
   if (_currentLogTab === 'historique') renderHistorique();
+}
+
+async function deleteHistoriqueEntry(id) {
+  if (!canManageRoles()) { toast('Accès refusé','Réservé aux Admins et Gestionnaires.','error'); return; }
+  const entry = HISTORIQUE_DATA.find(h => h.id === id);
+  if (!entry) return;
+  if (!confirm('Supprimer cette ligne de l\'historique ?\n\n"'+(entry.title||'')+'"\n\nCette action est définitive.')) return;
+  HISTORIQUE_DATA = HISTORIQUE_DATA.filter(h => h.id !== id);
+  await DB.set('telos-historique', HISTORIQUE_DATA);
+  renderHistorique();
+  toast('Entrée supprimée', entry.title || '', 'info');
 }
 
 function setHistFilter(f, btn) {
@@ -1852,6 +1864,13 @@ function renderHistorique() {
   const el = document.getElementById('hist-full');
   if (!el) return;
   const search = (document.getElementById('hist-search')?.value || '').toLowerCase();
+
+  // Migration : assigner un id stable aux entrées historiques créées avant cette fonctionnalité
+  let _idsMigrated = false;
+  (HISTORIQUE_DATA || []).forEach(h => {
+    if (!h.id) { h.id = 'hist_' + Date.now() + '_' + Math.random().toString(36).slice(2,6); _idsMigrated = true; }
+  });
+  if (_idsMigrated) DB.set('telos-historique', HISTORIQUE_DATA).catch(e => console.warn('hist id migration error:', e));
 
   let data = [...(HISTORIQUE_DATA || [])];
   if (_histFilter === 'commande') data = data.filter(h => h.kind === 'commande' && h.status === 'livree');
@@ -1883,6 +1902,10 @@ function renderHistorique() {
       ? (h.commanditaire ? ' · ' + esc(h.commanditaire) : '') + (h.craftType ? ' · ' + esc(h.craftType) : '')
       : (h.reward ? ' · ' + esc(h.reward) : '');
 
+    const delBtn = canManageRoles()
+      ? '<button onclick="deleteHistoriqueEntry(\'' + h.id + '\')" title="Supprimer cette ligne" style="flex-shrink:0;padding:3px 7px;border:1px solid rgba(255,68,68,0.35);background:transparent;color:var(--red);font-family:var(--ui);font-size:11px;cursor:pointer;">✕</button>'
+      : '';
+
     return '<div class="log-entry" style="padding:7px 0;border-bottom:1px solid rgba(247,140,30,0.06);display:flex;gap:10px;align-items:center;">'
       + '<span style="flex-shrink:0;font-size:15px;">' + icon + '</span>'
       + '<div style="flex:1;min-width:0;">'
@@ -1897,6 +1920,7 @@ function renderHistorique() {
       +   '</div>'
       + '</div>'
       + '<span style="flex-shrink:0;font-size:10px;color:var(--text-dim);font-family:var(--mono);white-space:nowrap;">' + dateStr + '</span>'
+      + delBtn
       + '</div>';
   }).join('');
 }
@@ -3535,6 +3559,41 @@ async function loadObjectifs() {
   renderObjectifs();
 }
 
+/* ── Nettoyage auto : commandes livrées/annulées et objectifs validés depuis
+   plus de 24h sont retirés de la liste active (déjà archivés dans l'historique
+   au moment de leur validation via pushHistorique()). ── */
+async function cleanupCompletedItems() {
+  const now = Date.now();
+  const DAY = 24 * 60 * 60 * 1000;
+  let removedCmd = 0, removedObj = 0;
+
+  const beforeCmd = COMMANDES.length;
+  COMMANDES = COMMANDES.filter(c => {
+    if (c.status !== 'livree' && c.status !== 'annulee') return true;
+    const ref = c.deliveredAt || c.cancelledAt || c.createdAt;
+    if (!ref) return true; // pas de date de référence -> on ne supprime pas par prudence
+    return (now - new Date(ref).getTime()) < DAY;
+  });
+  removedCmd = beforeCmd - COMMANDES.length;
+
+  const beforeObj = OBJECTIFS.length;
+  OBJECTIFS = OBJECTIFS.filter(o => {
+    if (!o.done) return true;
+    const ref = o.doneAt;
+    if (!ref) return true;
+    return (now - new Date(ref).getTime()) < DAY;
+  });
+  removedObj = beforeObj - OBJECTIFS.length;
+
+  if (removedCmd > 0) await saveCommandes();
+  if (removedObj > 0) await saveObjectifs();
+  if (removedCmd > 0) renderCommandes();
+  if (removedObj > 0) renderObjectifs();
+  if (removedCmd > 0 || removedObj > 0) {
+    pushLog('system', 'Système', `🧹 Nettoyage auto : ${removedCmd} commande(s) et ${removedObj} objectif(s) terminé(s) depuis +24h retirés (archivés dans l'historique).`);
+  }
+}
+
 async function saveObjectifs() {
   await DB.set('telos-objectifs', OBJECTIFS);
 }
@@ -4711,10 +4770,10 @@ async function checkStockForCommande(cmd) {
   const clientName = players.find(p => p.id === cmd.client)?.name || cmd.client || '?';
   const objTitle = '⚠ Approvisionnement : ' + cmd.title;
 
-  // Éviter les doublons — ne pas recréer si un objectif identique existe déjà
-  const alreadyExists = OBJECTIFS.some(o =>
-    o.cmdId === cmd.id && !o.done
-  );
+  // Éviter les doublons — ne pas recréer si un objectif existe déjà pour cette
+  // commande, validé ou non (sinon un objectif validé se re-génère indéfiniment
+  // tant que la commande reste en manque de ressources).
+  const alreadyExists = OBJECTIFS.some(o => o.cmdId === cmd.id);
   if (alreadyExists) return;
 
   // Mapper craftType → cat + action de l'objectif
@@ -4870,6 +4929,7 @@ async function cancelCommande(id) {
   if (!comm) return;
   if (!confirm('Annuler la commande "'+comm.title+'" ?')) return;
   comm.status = 'annulee';
+  comm.cancelledAt = new Date().toISOString();
   await saveCommandes();
   renderCommandes();
   toast('Commande annulée', comm.title, 'info');
@@ -9432,6 +9492,8 @@ async function init(){
   await loadArmurieCatalogue();
   await loadObjectifs();
   await loadCommandes();
+  await cleanupCompletedItems();
+  setInterval(cleanupCompletedItems, 60 * 60 * 1000); // toutes les heures
   await loadBlueprints();
   await refreshDatalist();
   await loadProfitHistory();
