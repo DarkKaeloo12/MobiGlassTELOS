@@ -8149,31 +8149,30 @@ async function updateBadges(){
   const badgeArm      = document.getElementById('badge-armurerie');
   const badgeArmTelos = document.getElementById('badge-armurerie-telos');
 
-  // ── Stock TELOS (réseau) : somme de tous les partenaires ──
-  let totalResTelos = 0, totalArmTelos = 0;
-  for (const p of players) {
-    const stocks = (await DB.get('uex-stocks-'+p.id)) || [];
-    totalResTelos += stocks.filter(s => (parseFloat(s.qty)||0) > 0).length;
-    const armory = (await DB.get('uex-armory-'+p.id)) || [];
-    totalArmTelos += armory.filter(a => (parseFloat(a.qty)||0) > 0).length;
-  }
-  if (badgeResTelos) { badgeResTelos.textContent = totalResTelos; badgeResTelos.style.display = totalResTelos > 0 ? '' : 'none'; }
-  if (badgeArmTelos) { badgeArmTelos.textContent = totalArmTelos; badgeArmTelos.style.display = totalArmTelos > 0 ? '' : 'none'; }
-
   if (!SESSION) {
     if (badgeRes) badgeRes.style.display = 'none';
+    if (badgeResTelos) badgeResTelos.style.display = 'none';
     if (badgeArm) badgeArm.style.display = 'none';
+    if (badgeArmTelos) badgeArmTelos.style.display = 'none';
     return;
   }
 
-  // ── Stock personnel du joueur connecté ──
-  const myStocks = (await DB.get('uex-stocks-'+SESSION.pid)) || [];
-  const myRes = myStocks.filter(s => (parseFloat(s.qty)||0) > 0).length;
-  const myArmory = (await DB.get('uex-armory-'+SESSION.pid)) || [];
-  const myArm = myArmory.filter(a => (parseFloat(a.qty)||0) > 0).length;
+  // ── TELOS : ce que le joueur connecté a lui-même apporté au réseau ──
+  const myTelosStocks = (await DB.get('uex-stocks-'+SESSION.pid)) || [];
+  const myTelosRes = myTelosStocks.filter(s => (parseFloat(s.qty)||0) > 0).length;
+  const myTelosArmory = (await DB.get('uex-armory-'+SESSION.pid)) || [];
+  const myTelosArm = myTelosArmory.filter(a => (parseFloat(a.qty)||0) > 0).length;
 
-  if (badgeRes) { badgeRes.textContent = myRes; badgeRes.style.display = myRes > 0 ? '' : 'none'; }
-  if (badgeArm) { badgeArm.textContent = myArm; badgeArm.style.display = myArm > 0 ? '' : 'none'; }
+  // ── Perso : le vrai stock personnel, séparé du réseau ──
+  const myPersoStocks = (await DB.get('uex-perso-'+SESSION.pid)) || [];
+  const myPersoRes = myPersoStocks.filter(s => (parseFloat(s.qty)||0) > 0).length;
+  const myPersoArmory = (await DB.get('uex-armory-perso-'+SESSION.pid)) || [];
+  const myPersoArm = myPersoArmory.filter(a => (parseFloat(a.qty)||0) > 0).length;
+
+  if (badgeResTelos) { badgeResTelos.textContent = myTelosRes; badgeResTelos.style.display = myTelosRes > 0 ? '' : 'none'; }
+  if (badgeRes)      { badgeRes.textContent = myPersoRes; badgeRes.style.display = myPersoRes > 0 ? '' : 'none'; }
+  if (badgeArmTelos) { badgeArmTelos.textContent = myTelosArm; badgeArmTelos.style.display = myTelosArm > 0 ? '' : 'none'; }
+  if (badgeArm)      { badgeArm.textContent = myPersoArm; badgeArm.style.display = myPersoArm > 0 ? '' : 'none'; }
 }
 
 /* ════════════════════════════════════════════════════════════
