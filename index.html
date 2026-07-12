@@ -87,12 +87,14 @@ function showLoginWall(){} // stub
     <div class="nav-item" onclick="goToStock(this)" id="nav-joueurs">
       <div class="n-icon">📦</div>
       <div><div class="n-main">RESSOURCE</div><div class="n-sub">Par partenaire</div></div>
-      <span class="nav-badge" id="badge-ressource-stock" style="display:none;">0</span>
+      <span class="nav-badge" id="badge-ressource-telos" title="Stock TELOS (réseau)" style="display:none;">0</span>
+      <span class="nav-badge" id="badge-ressource-stock" title="Stock personnel" style="display:none;background:rgba(96,165,250,0.18);color:var(--blue);">0</span>
     </div>
     <div class="nav-item" onclick="goToArmurerie(this)" id="nav-armurerie">
       <div class="n-icon">⚔</div>
       <div><div class="n-main">ARMURERIE</div><div class="n-sub">Équipements & Armes</div></div>
-      <span class="nav-badge" id="badge-armurerie" style="display:none;">0</span>
+      <span class="nav-badge" id="badge-armurerie-telos" title="Armurerie TELOS (réseau)" style="display:none;">0</span>
+      <span class="nav-badge" id="badge-armurerie" title="Armurerie personnelle" style="display:none;background:rgba(96,165,250,0.18);color:var(--blue);">0</span>
     </div>
 	
 	<div class="nav-item" id="nav-blueprints" onclick="goToBlueprints(this)" style="display:none;">
@@ -1417,9 +1419,7 @@ function showLoginWall(){} // stub
           <button type="button" class="cat-sel-btn active" data-cat="mineral"     onclick="selectCat(this)">⛏ Minéraux</button>
           <button type="button" class="cat-sel-btn"        data-cat="salvage"     onclick="selectCat(this)">🔧 Salvage</button>
           <button type="button" class="cat-sel-btn"        data-cat="resources"   onclick="selectCat(this)">📦 Ressources</button>
-          <button type="button" class="cat-sel-btn"        data-cat="equipment"   onclick="selectCat(this)">🛡 Équipements</button>
-          <button type="button" class="cat-sel-btn"        data-cat="weapons"     onclick="selectCat(this)">🔫 Armement</button>
-          <button type="button" class="cat-sel-btn"        data-cat="other"       onclick="selectCat(this)" style="grid-column:span 3;">○ Autre</button>
+          <button type="button" class="cat-sel-btn"        data-cat="other"       onclick="selectCat(this)">○ Autre</button>
         </div>
         <input type="hidden" id="ps-cat" value="mineral">
       </div>
@@ -1556,9 +1556,6 @@ function showLoginWall(){} // stub
           <button type="button" class="cat-sel-btn"        data-cat="mineral"     onclick="filterRMCat(this)">⛏ Minéraux</button>
           <button type="button" class="cat-sel-btn"        data-cat="salvage"     onclick="filterRMCat(this)">🔧 Salvage</button>
           <button type="button" class="cat-sel-btn"        data-cat="resources"   onclick="filterRMCat(this)">📦 Ressources</button>
-          <button type="button" class="cat-sel-btn"        data-cat="equipment"   onclick="filterRMCat(this)">🛡 Équipements</button>
-          <button type="button" class="cat-sel-btn"        data-cat="weapons"     onclick="filterRMCat(this)">🔫 Armement</button>
-          <button type="button" class="cat-sel-btn"        data-cat="accessories" onclick="filterRMCat(this)">🔩 Accessoires</button>
           <button type="button" class="cat-sel-btn"        data-cat="other"       onclick="filterRMCat(this)">○ Autre</button>
         </div>
       </div>

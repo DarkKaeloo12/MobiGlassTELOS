@@ -8144,8 +8144,21 @@ async function updateBadges(){
   _s('badge-joueurs', players.length);
   _s('kpi-partners', players.length);
 
-  const badgeRes = document.getElementById('badge-ressource-stock');
-  const badgeArm = document.getElementById('badge-armurerie');
+  const badgeRes      = document.getElementById('badge-ressource-stock');
+  const badgeResTelos = document.getElementById('badge-ressource-telos');
+  const badgeArm      = document.getElementById('badge-armurerie');
+  const badgeArmTelos = document.getElementById('badge-armurerie-telos');
+
+  // ── Stock TELOS (réseau) : somme de tous les partenaires ──
+  let totalResTelos = 0, totalArmTelos = 0;
+  for (const p of players) {
+    const stocks = (await DB.get('uex-stocks-'+p.id)) || [];
+    totalResTelos += stocks.filter(s => (parseFloat(s.qty)||0) > 0).length;
+    const armory = (await DB.get('uex-armory-'+p.id)) || [];
+    totalArmTelos += armory.filter(a => (parseFloat(a.qty)||0) > 0).length;
+  }
+  if (badgeResTelos) { badgeResTelos.textContent = totalResTelos; badgeResTelos.style.display = totalResTelos > 0 ? '' : 'none'; }
+  if (badgeArmTelos) { badgeArmTelos.textContent = totalArmTelos; badgeArmTelos.style.display = totalArmTelos > 0 ? '' : 'none'; }
 
   if (!SESSION) {
     if (badgeRes) badgeRes.style.display = 'none';
@@ -8153,7 +8166,7 @@ async function updateBadges(){
     return;
   }
 
-  // Stock personnel du joueur connecté (pas le total réseau)
+  // ── Stock personnel du joueur connecté ──
   const myStocks = (await DB.get('uex-stocks-'+SESSION.pid)) || [];
   const myRes = myStocks.filter(s => (parseFloat(s.qty)||0) > 0).length;
   const myArmory = (await DB.get('uex-armory-'+SESSION.pid)) || [];
